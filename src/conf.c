@@ -725,6 +725,12 @@ static int zlog_conf_parse_line(zlog_conf_t * a_conf, char *line, int *section)
 			a_conf->reload_conf_period = zc_parse_byte_size(value);
 		} else if (STRCMP(word_1, ==, "fsync") && STRCMP(word_2, ==, "period")) {
 			a_conf->fsync_period = zc_parse_byte_size(value);
+		} else if (STRCMP(word_1, ==, "use_writer_thread")) {
+			if (STRCMP(value, ==, "1")) {
+				a_conf->use_writer_thread = true;
+			} else {
+				a_conf->use_writer_thread = false;
+			}
 		} else {
 			zc_error("name[%s] is not any one of global options", name);
 			if (a_conf->strict_init) return -1;

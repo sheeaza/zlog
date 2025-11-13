@@ -28,6 +28,7 @@
 #include "zc_defs.h"
 #include "rule.h"
 #include "version.h"
+#include "wthread.h"
 
 /*******************************************************************************/
 extern char *zlog_git_sha1;
@@ -41,17 +42,26 @@ static zlog_category_t *zlog_default_category;
 static size_t zlog_env_reload_conf_count;
 static int zlog_env_is_init = 0;
 static int zlog_env_init_version = 0;
+
+static struct zlog_process_data {
+	struct wthread *wthread;
+} process_data;
+
 /*******************************************************************************/
 /* inner no need thread-safe */
 static void zlog_fini_inner(void)
 {
+	if (zlog_env_conf->use_writer_thread) {
+		wthread_destroy(process_data.wthread);
+	}
+
 	/* pthread_key_delete(zlog_thread_key); */
 	/* never use pthread_key_delete,
 	 * it will cause other thread can't release zlog_thread_t 
 	 * after one thread call pthread_key_delete
 	 * also key not init will cause a core dump
 	 */
-	
+
 	if (zlog_env_categories) zlog_category_table_del(zlog_env_categories);
 	zlog_env_categories = NULL;
 	zlog_default_category = NULL;
@@ -168,6 +178,16 @@ static int zlog_init_inner(const char *config)
 		goto err;
 	}
 
+	if (zlog_env_conf->use_writer_thread) {
+		struct wthread_create_arg arg = { 0 };
+		struct wthread *wthread = wthread_create(&arg);
+		if (!wthread) {
+			zc_error("wthread_create fail");
+			goto err;
+		}
+
+		process_data.wthread = wthread;
+	}
 	return 0;
 err:
 	zlog_fini_inner();
