@@ -50,6 +50,6 @@ add_test(test_bitmap "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_bitmap" 0xaa55 0x66
 file(GLOB CONF_FILES . *.conf)
 file(COPY
         ${CONF_FILES} hello_output
-        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+        DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
