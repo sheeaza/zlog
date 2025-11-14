@@ -21,6 +21,8 @@
 #include "buf.h"
 #include "thread.h"
 #include "mdc.h"
+#include "conf.h"
+#include "fifo.h"
 
 void zlog_thread_profile(zlog_thread_t * a_thread, int flag)
 {
@@ -48,6 +50,10 @@ void zlog_thread_profile(zlog_thread_t * a_thread, int flag)
 void zlog_thread_del(zlog_thread_t * a_thread)
 {
 	zc_assert(a_thread,);
+	if (a_thread->fifo) {
+		ref_put(&a_thread->fifo->ref, a_thread->lock_ref, fifo_ref_release);
+		a_thread->fifo = NULL;
+	}
 	if (a_thread->mdc)
 		zlog_mdc_del(a_thread->mdc);
 	if (a_thread->event)
@@ -68,7 +74,8 @@ void zlog_thread_del(zlog_thread_t * a_thread)
 	return;
 }
 
-zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf_size_max, int time_cache_count)
+zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf_size_max, int time_cache_count, zlog_conf_t *conf,
+		pthread_mutex_t *lock)
 {
 	zlog_thread_t *a_thread;
 
@@ -122,6 +129,19 @@ zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf
 		goto err;
 	}
 
+	if (conf->writer_thread.en) {
+		a_thread->fifo = fifo_ref_create(conf->writer_thread.per_thread_fifo_size);
+		if (!a_thread->fifo) {
+			zc_error("fifo_create fail");
+			goto err;
+		}
+
+		if (!lock) {
+			zc_error("writer_thread need a lock");
+			goto err;
+		}
+		a_thread->lock_ref = lock;
+	}
 
 	//zlog_thread_profile(a_thread, ZC_DEBUG);
 	return a_thread;

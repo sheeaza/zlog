@@ -1,0 +1,47 @@
+cur
+per thread
+    log
+	r lock // for global config
+	-> init set once thread local data.
+	out log
+		save to buf
+		buf -> shared file
+    
+	unlock
+
+	check if reload
+
+
+new w thread
+
+thread local data:
+	thread const data, (pid, thread name
+	per print:
+		tmp store, func, file, line, level
+    perf conf data:
+        fifo buf
+
+init 
+    global config
+
+per thread
+    log
+	r lock // for global config
+	-> init set once thread local data.
+	if ver diff
+		rebuild msgbuf, event
+	out log
+		save to buf
+		sig -> wthread
+		// buf -> shared file
+    
+	unlock
+
+	check if reload global config
+
+w thread:
+    iter threads
+        format log
+        buf -> file
+    check if reload config
+

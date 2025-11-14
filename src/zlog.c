@@ -45,13 +45,16 @@ static int zlog_env_init_version = 0;
 
 static struct zlog_process_data {
 	struct wthread *wthread;
-} process_data;
+	pthread_mutex_t share_mutex;
+} process_data = {
+	.share_mutex = PTHREAD_MUTEX_INITIALIZER,
+};
 
 /*******************************************************************************/
 /* inner no need thread-safe */
 static void zlog_fini_inner(void)
 {
-	if (zlog_env_conf->use_writer_thread) {
+	if (zlog_env_conf->writer_thread.en) {
 		wthread_destroy(process_data.wthread);
 	}
 
@@ -178,7 +181,7 @@ static int zlog_init_inner(const char *config)
 		goto err;
 	}
 
-	if (zlog_env_conf->use_writer_thread) {
+	if (zlog_env_conf->writer_thread.en) {
 		struct wthread_create_arg arg = { 0 };
 		struct wthread *wthread = wthread_create(&arg);
 		if (!wthread) {
@@ -618,7 +621,7 @@ err:
 	if (!a_thread) {  \
 		a_thread = zlog_thread_new(zlog_env_init_version,  \
 				zlog_env_conf->buf_size_min, zlog_env_conf->buf_size_max, \
-				zlog_env_conf->time_cache_count); \
+				zlog_env_conf->time_cache_count, zlog_env_conf, &process_data.share_mutex); \
 		if (!a_thread) {  \
 			zc_error("zlog_thread_new fail");  \
 			goto fail_goto;  \

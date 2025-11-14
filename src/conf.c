@@ -51,6 +51,7 @@
 #define ZLOG_CONF_DEFAULT_FILE_PERMS 0600
 #define ZLOG_CONF_DEFAULT_RELOAD_CONF_PERIOD 0
 #define ZLOG_CONF_DEFAULT_FSYNC_PERIOD 0
+#define ZLOG_CONF_DEFAULT_PER_THREAD_FIFO_SIZE 1024 * 4
 #define ZLOG_CONF_BACKUP_ROTATE_LOCK_FILE "/tmp/zlog.lock"
 /*******************************************************************************/
 
@@ -173,6 +174,7 @@ zlog_conf_t *zlog_conf_new(const char *config)
 	a_conf->file_perms = ZLOG_CONF_DEFAULT_FILE_PERMS;
 	a_conf->reload_conf_period = ZLOG_CONF_DEFAULT_RELOAD_CONF_PERIOD;
 	a_conf->fsync_period = ZLOG_CONF_DEFAULT_FSYNC_PERIOD;
+	a_conf->writer_thread.per_thread_fifo_size = ZLOG_CONF_DEFAULT_PER_THREAD_FIFO_SIZE;
 	/* set default configuration end */
 
 	a_conf->levels = zlog_level_list_new();
@@ -727,10 +729,12 @@ static int zlog_conf_parse_line(zlog_conf_t * a_conf, char *line, int *section)
 			a_conf->fsync_period = zc_parse_byte_size(value);
 		} else if (STRCMP(word_1, ==, "use_writer_thread")) {
 			if (STRCMP(value, ==, "1")) {
-				a_conf->use_writer_thread = true;
+				a_conf->writer_thread.en = true;
 			} else {
-				a_conf->use_writer_thread = false;
+				a_conf->writer_thread.en = false;
 			}
+		} else if (STRCMP(word_1, ==, "fifo_size")) {
+			a_conf->writer_thread.per_thread_fifo_size = zc_parse_byte_size(value);
 		} else {
 			zc_error("name[%s] is not any one of global options", name);
 			if (a_conf->strict_init) return -1;

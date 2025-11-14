@@ -46,7 +46,10 @@ typedef struct zlog_conf_s {
 	char log_level[MAXLEN_CFG_LINE + 1];
 	int level;
 
-	bool use_writer_thread;
+	struct {
+		bool en;
+		size_t per_thread_fifo_size;
+	} writer_thread;
 } zlog_conf_t;
 
 extern zlog_conf_t * zlog_env_conf;
