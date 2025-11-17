@@ -1,23 +1,10 @@
-cur
-per thread
-    log
-	r lock // for global config
-	-> init set once thread local data.
-	out log
-		save to buf
-		buf -> shared file
-    
-	unlock
-
-	check if reload
-
-
 new w thread
 
 thread local data:
 	thread const data, (pid, thread name
 	per print:
 		tmp store, func, file, line, level
+        va_list(stack), format string,
     perf conf data:
         fifo buf
 
@@ -25,25 +12,35 @@ init
     global config
     new rules
 
+format 2 layers:
+    1st defined in conf.[rule], convert to serial of func calls
+        2nd, %m userdata, per print
+
 per thread
     log
 	r lock // for global config
 	-> init set once thread local data.
-	if ver diff
-		rebuild msgbuf, event
-    cache func,file...,level to a_thread.event
+    * cache func,file...,level to a_thread.event
+        va_list(stack), format string,
+        -> need to save to fifo
 	out log
         category for each rule
+            zlog_format_gen_msg(rule.format 
+                for each format.pattern_specs
+                    zlog_spec_gen_msg, zlog_spec_gen_msg_direct, zlog_spec_write*
             save to buf
             sig -> wthread
             // buf -> shared file
     
+	if ver diff
+		rebuild msgbuf, event
 	unlock
 
 	check if reload global config
 
 w thread:
     iter threads
+        category 
         format log
         buf -> file
     check if reload config
