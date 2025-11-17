@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <assert.h>
 
 #include "zc_profile.h"
 #include "misc.h"
@@ -23,6 +24,38 @@ struct fifo *fifo_create(unsigned int size)
 void fifo_destroy(struct fifo *fifo)
 {
 	free(fifo);
+}
+
+/* todo: add mem fence */
+char *fifo_in_ref(struct fifo *fifo, unsigned int size)
+{
+	if (size > fifo_freed(fifo)) {
+        zc_error("fifo not enough space");
+        return NULL;
+	}
+
+    return &fifo->data[fifo->in];
+}
+
+void fifo_in_commit(struct fifo *fifo, unsigned int size)
+{
+    assert(fifo_freed(fifo) > size);
+    fifo->in += size;
+}
+
+unsigned int fifo_out_ref(struct fifo *fifo, char **buf)
+{
+    if (fifo_used(fifo) == 0)
+        return 0;
+
+    *buf = &fifo->data[fifo->out];
+    return fifo_used(fifo);
+}
+
+void fifo_out_commit(struct fifo *fifo, unsigned int size)
+{
+    assert(size < fifo_used(fifo));
+    fifo->out += size;
 }
 
 struct fifo_ref *fifo_ref_create(unsigned int size)

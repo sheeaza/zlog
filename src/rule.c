@@ -15,6 +15,7 @@
 
 #include "fmacros.h"
 
+#include <sched.h>
 #include <string.h>
 #include <ctype.h>
 #ifndef _WIN32
@@ -38,6 +39,8 @@
 #include "rotater.h"
 #include "spec.h"
 #include "conf.h"
+#include "misc.h"
+#include "fifo.h"
 
 #include "zc_defs.h"
 
@@ -350,6 +353,27 @@ static int zlog_rule_output_dynamic_file_rotate(zlog_rule_t * a_rule, zlog_threa
 	return 0;
 }
 
+static int zlog_rule_output_push_buf(zlog_rule_t * a_rule, zlog_thread_t * a_thread)
+{
+	if (zlog_format_gen_msg(a_rule->format, a_thread)) {
+		zc_error("zlog_format_output fail");
+		return -1;
+	}
+
+	size_t len = zlog_buf_len(a_thread->msg_buf);
+    size_t head_size = sizeof(struct msg_pack);
+    char *buf = fifo_in_ref(a_thread->producer.fifo, len + head_size);
+    if (!buf)
+        return -1;
+    struct msg_pack *pack = (struct msg_pack *)buf;
+    pack->type = MSG_TYPE_STRING;
+    pack->size = len;
+    memcpy(pack->data, zlog_buf_str(a_thread->msg_buf), pack->size);
+    fifo_in_commit(a_thread->producer.fifo, len + head_size);
+
+    return 0;
+}
+
 static int zlog_rule_output_pipe(zlog_rule_t * a_rule, zlog_thread_t * a_thread)
 {
 	if (zlog_format_gen_msg(a_rule->format, a_thread)) {
@@ -582,7 +606,7 @@ zlog_rule_t *zlog_rule_new(char *line,
 		zc_arraylist_t * formats,
 		unsigned int file_perms,
 		size_t fsync_period,
-		int * time_cache_count)
+		int * time_cache_count, zlog_conf_t *conf)
 {
 	int rc = 0;
 	int nscan = 0;
@@ -811,7 +835,9 @@ zlog_rule_t *zlog_rule_new(char *line,
 		}
 
 		/* try to figure out if the log file path is dynamic or static */
-		if (a_rule->dynamic_specs) {
+        if (conf->writer_thread.en) {
+				a_rule->output = zlog_rule_output_push_buf;
+        } else if (a_rule->dynamic_specs) {
 			if (a_rule->archive_max_size <= 0) {
 				a_rule->output = zlog_rule_output_dynamic_file_single;
 			} else {

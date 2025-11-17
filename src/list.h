@@ -27,4 +27,11 @@ static inline void list_del(struct list_head *entry)
     entry->next = NULL;
 }
 
+static inline int list_is_head(const struct list_head *list, const struct list_head *head)
+{
+	return list == head;
+}
+
+#define list_for_each(head, pos)                                                                   \
+    for (struct list_head *pos = (head)->next; !list_is_head(pos, head); pos = pos->next)
 #endif

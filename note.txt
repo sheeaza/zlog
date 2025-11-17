@@ -23,6 +23,7 @@ thread local data:
 
 init 
     global config
+    new rules
 
 per thread
     log
@@ -30,10 +31,12 @@ per thread
 	-> init set once thread local data.
 	if ver diff
 		rebuild msgbuf, event
+    cache func,file...,level to a_thread.event
 	out log
-		save to buf
-		sig -> wthread
-		// buf -> shared file
+        category for each rule
+            save to buf
+            sig -> wthread
+            // buf -> shared file
     
 	unlock
 
@@ -45,3 +48,6 @@ w thread:
         buf -> file
     check if reload config
 
+
+category -> standlone, per print, shared by threads
+    rule * n

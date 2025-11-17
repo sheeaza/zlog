@@ -307,7 +307,7 @@ static int zlog_conf_build_without_file(zlog_conf_t * a_conf)
 			a_conf->formats,
 			a_conf->file_perms,
 			a_conf->fsync_period,
-			&(a_conf->time_cache_count));
+			&(a_conf->time_cache_count), a_conf);
 	if (!default_rule) {
 		zc_error("zlog_rule_new fail");
 		return -1;
@@ -766,7 +766,7 @@ static int zlog_conf_parse_line(zlog_conf_t * a_conf, char *line, int *section)
 			a_conf->formats,
 			a_conf->file_perms,
 			a_conf->fsync_period,
-			&(a_conf->time_cache_count));
+			&(a_conf->time_cache_count), a_conf);
 
 		if (!a_rule) {
 			zc_error("zlog_rule_new fail [%s]", line);

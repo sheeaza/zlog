@@ -2,6 +2,7 @@
 #define __wthread_h
 
 #include <pthread.h>
+#include <stdbool.h>
 
 #include "list.h"
 
@@ -12,6 +13,7 @@ struct wthread_create_arg {
 struct wthread {
 	pthread_t tid;
     struct list_head per_thread_data;
+    bool exit;
 };
 
 struct wthread *wthread_create(struct wthread_create_arg *arg);

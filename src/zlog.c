@@ -29,6 +29,7 @@
 #include "rule.h"
 #include "version.h"
 #include "wthread.h"
+#include "misc.h"
 
 /*******************************************************************************/
 extern char *zlog_git_sha1;
@@ -43,10 +44,7 @@ static size_t zlog_env_reload_conf_count;
 static int zlog_env_is_init = 0;
 static int zlog_env_init_version = 0;
 
-static struct zlog_process_data {
-	struct wthread *wthread;
-	pthread_mutex_t share_mutex;
-} process_data = {
+static struct zlog_process_data process_data = {
 	.share_mutex = PTHREAD_MUTEX_INITIALIZER,
 };
 
@@ -621,7 +619,7 @@ err:
 	if (!a_thread) {  \
 		a_thread = zlog_thread_new(zlog_env_init_version,  \
 				zlog_env_conf->buf_size_min, zlog_env_conf->buf_size_max, \
-				zlog_env_conf->time_cache_count, zlog_env_conf, &process_data.share_mutex); \
+				zlog_env_conf->time_cache_count, zlog_env_conf, &process_data); \
 		if (!a_thread) {  \
 			zc_error("zlog_thread_new fail");  \
 			goto fail_goto;  \

@@ -2,11 +2,40 @@
 #include <pthread.h>
 
 #include "zc_profile.h"
+#include "list.h"
+#include "thread.h"
+#include "misc.h"
+#include "fifo.h"
+
 #include "wthread.h"
 
 static void *wthread_func(void *arg)
 {
-	zc_debug("xx");
+    struct wthread *wthread = arg;
+    while (!wthread->exit) {
+        /* todo: lock ? */
+        list_for_each(&wthread->per_thread_data, pos) {
+            zlog_thread_t *thread_data = container_of(pos, zlog_thread_t, producer.node);
+            struct fifo *fifo = thread_data->producer.fifo;
+
+            char *buf;
+            unsigned int len = fifo_out_ref(fifo, &buf);
+            if (len == 0)
+                continue;
+
+            for (unsigned int len_used = 0; len_used < len;) {
+                struct msg_pack *pack = (struct msg_pack *)buf;
+
+                switch (pack->type) {
+                case MSG_TYPE_STRING:
+                default:
+                    break;
+                }
+                len_used += pack->size + msg_pack_head_size();
+            }
+        }
+    }
+	zc_debug("exit");
 	return NULL;
 }
 
@@ -52,6 +81,7 @@ free_attr:
 
 void wthread_destroy(struct wthread *wthread)
 {
+    wthread->exit = true;
 	int ret = pthread_join(wthread->tid, NULL);
 	if (ret) {
 		zc_error("pthread_join failed %d, ignore", ret);

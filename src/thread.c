@@ -15,6 +15,7 @@
 
 #include <pthread.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "zc_defs.h"
 #include "event.h"
@@ -23,6 +24,9 @@
 #include "mdc.h"
 #include "conf.h"
 #include "fifo.h"
+#include "list.h"
+#include "misc.h"
+#include "wthread.h"
 
 void zlog_thread_profile(zlog_thread_t * a_thread, int flag)
 {
@@ -50,9 +54,15 @@ void zlog_thread_profile(zlog_thread_t * a_thread, int flag)
 void zlog_thread_del(zlog_thread_t * a_thread)
 {
 	zc_assert(a_thread,);
-	if (a_thread->fifo) {
-		ref_put(&a_thread->fifo->ref, a_thread->lock_ref, fifo_ref_release);
-		a_thread->fifo = NULL;
+	if (a_thread->producer.fifo) {
+		/* todo: use refcnt to manage lifecyle, last one free */
+		assert(!pthread_mutex_lock(a_thread->producer.lock_ref));
+		list_del(&a_thread->producer.node);
+		assert(!pthread_mutex_unlock(a_thread->producer.lock_ref));
+		/* writer thread enabled */
+        fifo_destroy(a_thread->producer.fifo);
+		a_thread->producer.fifo = NULL;
+		a_thread->producer.lock_ref = NULL;
 	}
 	if (a_thread->mdc)
 		zlog_mdc_del(a_thread->mdc);
@@ -75,7 +85,7 @@ void zlog_thread_del(zlog_thread_t * a_thread)
 }
 
 zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf_size_max, int time_cache_count, zlog_conf_t *conf,
-		pthread_mutex_t *lock)
+		struct zlog_process_data *pdata)
 {
 	zlog_thread_t *a_thread;
 
@@ -130,17 +140,17 @@ zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf
 	}
 
 	if (conf->writer_thread.en) {
-		a_thread->fifo = fifo_ref_create(conf->writer_thread.per_thread_fifo_size);
-		if (!a_thread->fifo) {
+		a_thread->producer.fifo = fifo_create(conf->writer_thread.per_thread_fifo_size);
+		if (!a_thread->producer.fifo) {
 			zc_error("fifo_create fail");
 			goto err;
 		}
 
-		if (!lock) {
-			zc_error("writer_thread need a lock");
-			goto err;
-		}
-		a_thread->lock_ref = lock;
+		a_thread->producer.lock_ref = &pdata->share_mutex;
+		list_head_init(&a_thread->producer.node);
+		assert(!pthread_mutex_lock(a_thread->producer.lock_ref));
+		list_head_add(&pdata->wthread->per_thread_data, &a_thread->producer.node);
+		assert(!pthread_mutex_unlock(a_thread->producer.lock_ref));
 	}
 
 	//zlog_thread_profile(a_thread, ZC_DEBUG);
