@@ -423,7 +423,10 @@ static int zlog_spec_write_usrmsg(zlog_spec_t * a_spec, zlog_thread_t * a_thread
 static int zlog_spec_gen_msg_direct(zlog_spec_t * a_spec, zlog_thread_t * a_thread, struct zlog_output_data *data)
 {
 	/* no need to reprint %1.2d here */
-	return a_spec->write_buf(a_spec, a_thread, a_thread->msg_buf, data);
+    if (data) {
+        return a_spec->write_buf(a_spec, data->thread, data->tmp_buf, data);
+    }
+    return a_spec->write_buf(a_spec, a_thread, a_thread->msg_buf, data);
 }
 
 static int zlog_spec_gen_msg_reformat(zlog_spec_t * a_spec, zlog_thread_t * a_thread, struct zlog_output_data *data)
