@@ -54,7 +54,7 @@ unsigned int fifo_out_ref(struct fifo *fifo, char **buf)
 
 void fifo_out_commit(struct fifo *fifo, unsigned int size)
 {
-    assert(size < fifo_used(fifo));
+    assert(size <= fifo_used(fifo));
     fifo->out += size;
 }
 

@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include "conf.h"
 #include "category_table.h"
@@ -30,6 +31,7 @@
 #include "version.h"
 #include "wthread.h"
 #include "misc.h"
+#include "fifo.h"
 
 /*******************************************************************************/
 extern char *zlog_git_sha1;
@@ -180,7 +182,7 @@ static int zlog_init_inner(const char *config)
 	}
 
 	if (zlog_env_conf->writer_thread.en) {
-		struct wthread_create_arg arg = { 0 };
+		struct wthread_create_arg arg = { .conf = zlog_env_conf };
 		struct wthread *wthread = wthread_create(&arg);
 		if (!wthread) {
 			zc_error("wthread_create fail");
@@ -1107,18 +1109,65 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
 
 	zlog_fetch_thread(a_thread, exit);
 
-	va_start(args, format);
-	zlog_event_set_fmt(a_thread->event,
-		zlog_default_category->name, zlog_default_category->name_len,
-		file, filelen, func, funclen, line, level,
-		format, args);
+    if (zlog_env_conf->writer_thread.en) {
+        unsigned int fifo_len = fifo_freed(a_thread->producer.fifo);
+        char *buf = fifo_in_ref(a_thread->producer.fifo, fifo_len);
+        unsigned int head_size = msg_pack_head_size() + msg_per_print_data_head_size();
+        if (head_size > fifo_len) {
+            zc_error("fifo full, %u > free %u", head_size, fifo_len);
+            goto exit;
+        }
 
-	if (zlog_category_output(zlog_default_category, a_thread)) {
-		zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
-		va_end(args);
-		goto exit;
-	}
-	va_end(args);
+        assert(buf);
+        unsigned int max_str_size = fifo_len - head_size;
+        struct msg_pack *pack = (struct msg_pack *)buf;
+        struct msg_per_print_str *data = (struct msg_per_print_str *)pack->data;
+
+        va_start(args, format);
+        int ret = vsnprintf(data->formatted_string, max_str_size, format, args);
+        va_end(args);
+        if (ret < 0) {
+            zc_error("failed to print to formatted_string ret %d", ret);
+            goto exit;
+        }
+
+        if (ret >= max_str_size) {
+            zc_error("warning truncated");
+            data->formatted_string[max_str_size - 1] = '\0';
+            data->formatted_string_size = max_str_size;
+        } else {
+            data->formatted_string_size = ret + 1;
+        }
+        
+        pack->type = MSG_TYPE_PER_PRINT_DATA;
+        pack->category = zlog_default_category;
+        pack->file = file;
+        pack->filelen = filelen;
+        pack->func = func;
+        pack->funclen = funclen;
+        pack->line = line;
+        pack->level = level;
+        ret = clock_gettime(CLOCK_REALTIME, &pack->ts); /* todo: CLOCK_MONOTONIC  ? */
+        if (ret) {
+            zc_error("failed to get ts ret %d", ret);
+            goto exit;
+        }
+
+        fifo_in_commit(a_thread->producer.fifo, head_size + data->formatted_string_size);
+    } else {
+        va_start(args, format);
+        zlog_event_set_fmt(a_thread->event,
+                zlog_default_category->name, zlog_default_category->name_len,
+                file, filelen, func, funclen, line, level,
+                format, args);
+
+        if (zlog_category_output(zlog_default_category, a_thread)) {
+            zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
+            va_end(args);
+            goto exit;
+        }
+        va_end(args);
+    }
 
 	if (zlog_env_conf->reload_conf_period &&
 		++zlog_env_reload_conf_count > zlog_env_conf->reload_conf_period ) {

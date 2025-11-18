@@ -14,18 +14,49 @@ struct zlog_process_data
 };
 
 enum msg_type {
-    MSG_TYPE_STRING = 0,
+    MSG_TYPE_STRING = 1,
+    MSG_TYPE_PER_PRINT_DATA,
 };
 
 struct msg_pack {
     unsigned int type;
-    unsigned int size;
+    struct zlog_category_s *category;
+    const char *file;
+    size_t filelen;
+    const char *func;
+    size_t funclen;
+    long line;
+    int level;
+    struct timespec ts;
+
     char data[];
+};
+
+struct zlog_category_s;
+struct msg_per_print_str {
+    unsigned int formatted_string_size;
+    char formatted_string[];
+};
+
+struct zlog_thread_s;
+struct zlog_output_data {
+    struct zlog_thread_s *thread;
+    struct msg_pack *pack;
+    struct zlog_buf_s *tmp_buf;
+    struct {
+        char *str;
+        size_t len;
+    } time_str;
 };
 
 static inline unsigned int msg_pack_head_size(void)
 {
     return sizeof(struct msg_pack);
+}
+
+static inline unsigned int msg_per_print_data_head_size(void)
+{
+    return sizeof(struct msg_per_print_str);
 }
 
 #endif

@@ -5,14 +5,19 @@
 #include <stdbool.h>
 
 #include "list.h"
+#include "zc_xplatform.h"
 
+struct zlog_conf_s;
 struct wthread_create_arg {
-	int xxx;
+    struct zlog_conf_s *conf;
 };
 
+struct zlog_buf_s;
 struct wthread {
 	pthread_t tid;
     struct list_head per_thread_data;
+	struct zlog_buf_s *msg_buf;
+	char time_str[MAXLEN_CFG_LINE + 1];
     bool exit;
 };
 

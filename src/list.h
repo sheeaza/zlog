@@ -9,8 +9,8 @@ struct list_head {
 
 static inline void list_head_init(struct list_head *head)
 {
-    head->next = NULL;
-    head->prev = NULL;
+    head->next = head;
+    head->prev = head;
 }
 
 static inline void list_head_add(struct list_head *head, struct list_head *new)
@@ -30,6 +30,11 @@ static inline void list_del(struct list_head *entry)
 static inline int list_is_head(const struct list_head *list, const struct list_head *head)
 {
 	return list == head;
+}
+
+static inline int list_empty(const struct list_head *head)
+{
+	return head->next == head;
 }
 
 #define list_for_each(head, pos)                                                                   \

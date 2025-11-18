@@ -14,6 +14,8 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
+
 #include "zlog.h"
 
 int main(int argc, char** argv)
@@ -28,6 +30,7 @@ int main(int argc, char** argv)
 
 	dzlog_info("hello, zlog");
 	dzlog_info("hello, zlog1");
+    sleep(1);
 
 	zlog_fini();
 	

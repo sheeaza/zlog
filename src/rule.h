@@ -31,8 +31,10 @@
 #include "record.h"
 
 typedef struct zlog_rule_s zlog_rule_t;
+struct zlog_output_data;
 
 typedef int (*zlog_rule_output_fn) (zlog_rule_t * a_rule, zlog_thread_t * a_thread);
+typedef int (*zlog_rule_output_wthread_fn) (zlog_rule_t * a_rule, struct zlog_output_data *);
 
 struct zlog_rule_s {
 	char category[MAXLEN_CFG_LINE + 1];
@@ -71,19 +73,21 @@ struct zlog_rule_s {
 
 	zlog_format_t *format;
 	zlog_rule_output_fn output;
+	zlog_rule_output_wthread_fn output_w;
 
 	char record_name[MAXLEN_PATH + 1];
 	char record_path[MAXLEN_PATH + 1];
 	zlog_record_fn record_func;
 };
 
+struct zlog_conf_s;
 zlog_rule_t *zlog_rule_new(char * line,
 		zc_arraylist_t * levels,
 		zlog_format_t * default_format,
 		zc_arraylist_t * formats,
 		unsigned int file_perms,
 		size_t fsync_period,
-		int * time_cache_count, zlog_conf_t *conf);
+		int * time_cache_count, struct zlog_conf_s *conf);
 
 void zlog_rule_del(zlog_rule_t * a_rule);
 void zlog_rule_profile(zlog_rule_t * a_rule, int flag);
@@ -92,4 +96,5 @@ int zlog_rule_is_wastebin(zlog_rule_t * a_rule);
 int zlog_rule_set_record(zlog_rule_t * a_rule, zc_hashtable_t *records);
 int zlog_rule_output(zlog_rule_t * a_rule, zlog_thread_t * a_thread);
 
+int zlog_rule_output2(zlog_rule_t * a_rule, struct zlog_output_data *data);
 #endif

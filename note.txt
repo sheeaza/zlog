@@ -4,7 +4,8 @@ thread local data:
 	thread const data, (pid, thread name
 	per print:
 		tmp store, func, file, line, level
-        va_list(stack), format string,
+        va_list(stack), format string, ts
+        category
     perf conf data:
         fifo buf
 
@@ -26,7 +27,7 @@ per thread
 	out log
         category for each rule
             zlog_format_gen_msg(rule.format 
-                for each format.pattern_specs
+                for each format.pattern_specs // parsed conf rule
                     zlog_spec_gen_msg, zlog_spec_gen_msg_direct, zlog_spec_write*
             save to buf
             sig -> wthread
@@ -47,4 +48,7 @@ w thread:
 
 
 category -> standlone, per print, shared by threads
-    rule * n
+    rule * n // ref conf.rules
+
+conf.formats
+    n * spec

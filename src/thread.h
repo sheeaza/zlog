@@ -30,7 +30,7 @@ struct fifo_ref;
  * @producer: used with writer thread
  *  @node: hook to wthread
  */
-typedef struct {
+typedef struct zlog_thread_s {
 	int init_version;
 	zlog_mdc_t *mdc;
 	zlog_event_t *event;
@@ -52,13 +52,13 @@ typedef struct {
     } producer;
 } zlog_thread_t;
 
-typedef struct zlog_conf_s zlog_conf_t;
+struct zlog_conf_s;
 struct zlog_process_data;
 
 void zlog_thread_del(zlog_thread_t * a_thread);
 void zlog_thread_profile(zlog_thread_t * a_thread, int flag);
 zlog_thread_t *zlog_thread_new(int init_version,
-			size_t buf_size_min, size_t buf_size_max, int time_cache_count, zlog_conf_t *conf,
+			size_t buf_size_min, size_t buf_size_max, int time_cache_count, struct zlog_conf_s *conf,
 			struct zlog_process_data *pdata);
 
 int zlog_thread_rebuild_msg_buf(zlog_thread_t * a_thread, size_t buf_size_min, size_t buf_size_max);
