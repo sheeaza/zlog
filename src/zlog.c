@@ -198,7 +198,7 @@ err:
 }
 
 /*******************************************************************************/
-int zlog_init(const char *config)
+XFUNC int zlog_init(const char *config)
 {
 	int rc;
 	zc_debug("------zlog_init start------");
@@ -241,7 +241,7 @@ err:
 	return -1;
 }
 
-int zlog_init_from_string(const char *config_string)
+XFUNC int zlog_init_from_string(const char *config_string)
 {
     int rc;
     zc_debug("------zlog_init start------");
@@ -335,7 +335,7 @@ err:
 	return -1;
 }
 /*******************************************************************************/
-int zlog_reload(const char *config)
+XFUNC int zlog_reload(const char *config)
 {
 	int rc = 0;
 	int i = 0;
@@ -424,7 +424,7 @@ quit:
 	return 0;
 }
 /*******************************************************************************/
-int zlog_reload_from_string(const char *conf_string)
+XFUNC int zlog_reload_from_string(const char *conf_string)
 {
     int rc = 0;
     int i = 0;
@@ -498,7 +498,7 @@ quit:
     return 0;
 }
 /*******************************************************************************/
-void zlog_fini(void)
+XFUNC void zlog_fini(void)
 {
 	int rc = 0;
 
@@ -527,7 +527,7 @@ exit:
 	return;
 }
 /*******************************************************************************/
-zlog_category_t *zlog_get_category(const char *cname)
+XFUNC zlog_category_t *zlog_get_category(const char *cname)
 {
 	int rc = 0;
 	zlog_category_t *a_category = NULL;
@@ -655,7 +655,7 @@ err:
 } while (0)
 
 /*******************************************************************************/
-int zlog_put_mdc(const char *key, const char *value)
+XFUNC int zlog_put_mdc(const char *key, const char *value)
 {
 	int rc = 0;
 	zlog_thread_t *a_thread;
@@ -696,7 +696,7 @@ err:
 	return -1;
 }
 
-char *zlog_get_mdc(char *key)
+XFUNC char *zlog_get_mdc(char *key)
 {
 	int rc = 0;
 	char *value = NULL;
@@ -742,7 +742,7 @@ err:
 	return NULL;
 }
 
-void zlog_remove_mdc(char *key)
+XFUNC void zlog_remove_mdc(char *key)
 {
 	int rc = 0;
 	zlog_thread_t *a_thread;
@@ -777,7 +777,7 @@ exit:
 	return;
 }
 
-void zlog_clean_mdc(void)
+XFUNC void zlog_clean_mdc(void)
 {
 	int rc = 0;
 	zlog_thread_t *a_thread;
@@ -810,7 +810,7 @@ exit:
 	return;
 }
 
-int zlog_level_switch(zlog_category_t * category, int level)
+XFUNC int zlog_level_switch(zlog_category_t * category, int level)
 {
     // This is NOT thread safe.
     memset(category->level_bitmap, 0x00, sizeof(category->level_bitmap));
@@ -822,7 +822,7 @@ int zlog_level_switch(zlog_category_t * category, int level)
 }
 
 /*******************************************************************************/
-void vzlog(zlog_category_t * category,
+XFUNC void vzlog(zlog_category_t * category,
 	const char *file, size_t filelen,
 	const char *func, size_t funclen,
 	long line, int level,
@@ -879,7 +879,7 @@ reload:
 	return;
 }
 
-void hzlog(zlog_category_t *category,
+XFUNC void hzlog(zlog_category_t *category,
 	const char *file, size_t filelen,
 	const char *func, size_t funclen,
 	long line, int level,
@@ -928,7 +928,7 @@ reload:
 
 /*******************************************************************************/
 /* for speed up, copy from vzlog */
-void vdzlog(const char *file, size_t filelen,
+XFUNC void vdzlog(const char *file, size_t filelen,
 	const char *func, size_t funclen,
 	long line, int level,
 	const char *format, va_list args)
@@ -981,7 +981,7 @@ reload:
 	return;
 }
 
-void hdzlog(const char *file, size_t filelen,
+XFUNC void hdzlog(const char *file, size_t filelen,
 	const char *func, size_t funclen,
 	long line, int level,
 	const void *buf, size_t buflen)
@@ -1035,7 +1035,7 @@ reload:
 }
 
 /*******************************************************************************/
-void zlog(zlog_category_t * category,
+XFUNC void zlog(zlog_category_t * category,
 	const char *file, size_t filelen, const char *func, size_t funclen,
 	long line, const int level,
 	const char *format, ...)
@@ -1188,7 +1188,7 @@ reload:
 }
 
 /*******************************************************************************/
-void zlog_profile(void)
+XFUNC void zlog_profile(void)
 {
 	int rc = 0;
 	rc = pthread_rwlock_rdlock(&zlog_env_lock);
@@ -1264,7 +1264,7 @@ int zlog_set_record(const char *rname, zlog_record_fn record_output)
 	return rc;
 }
 /*******************************************************************************/
-int zlog_level_enabled(zlog_category_t *category, const int level)
+XFUNC int zlog_level_enabled(zlog_category_t *category, const int level)
 {
 	int enable = 0;
 
