@@ -9,10 +9,10 @@
  * todo add mem fence, 1 in 1 out, lock free
  */
 struct fifo {
-	unsigned int	in;
-	unsigned int	out;
-	unsigned int size;
-	char data[];
+    unsigned int in;
+    unsigned int out;
+    unsigned int size;
+    char data[];
 };
 
 struct fifo *fifo_create(unsigned int size);
@@ -24,7 +24,7 @@ void fifo_in_commit(struct fifo *fifo, unsigned int size);
 unsigned int fifo_out_ref(struct fifo *fifo, char **buf);
 void fifo_out_commit(struct fifo *fifo, unsigned int size);
 
-static inline unsigned int fifo_used(struct fifo *fifo)
+static inline unsigned int fifo_pushed(struct fifo *fifo)
 {
 	return fifo->in - fifo->out;
 }

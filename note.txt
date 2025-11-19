@@ -52,3 +52,17 @@ category -> standlone, per print, shared by threads
 
 conf.formats
     n * spec
+
+pthread_cond
+    lock
+    set
+    signal
+    unlock
+
+    lock
+    check
+    wait,unlock
+    unlock
+
+todo:
+    thread data refcnt

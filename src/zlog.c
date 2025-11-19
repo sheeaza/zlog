@@ -54,8 +54,8 @@ static struct zlog_process_data process_data = {
 /* inner no need thread-safe */
 static void zlog_fini_inner(void)
 {
-	if (zlog_env_conf->writer_thread.en) {
-		wthread_destroy(process_data.wthread);
+	if (zlog_env_conf->log_consumer.en) {
+		log_consumer_destroy(process_data.wthread);
 	}
 
 	/* pthread_key_delete(zlog_thread_key); */
@@ -181,9 +181,9 @@ static int zlog_init_inner(const char *config)
 		goto err;
 	}
 
-	if (zlog_env_conf->writer_thread.en) {
-		struct wthread_create_arg arg = { .conf = zlog_env_conf };
-		struct wthread *wthread = wthread_create(&arg);
+	if (zlog_env_conf->log_consumer.en) {
+		struct logc_create_arg arg = { .conf = zlog_env_conf };
+		struct log_consumer *wthread = log_consumer_create(&arg);
 		if (!wthread) {
 			zc_error("wthread_create fail");
 			goto err;
@@ -1109,7 +1109,7 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
 
 	zlog_fetch_thread(a_thread, exit);
 
-    if (zlog_env_conf->writer_thread.en) {
+    if (zlog_env_conf->log_consumer.en) {
         unsigned int fifo_len = fifo_freed(a_thread->producer.fifo);
         char *buf = fifo_in_ref(a_thread->producer.fifo, fifo_len);
         unsigned int head_size = msg_pack_head_size() + msg_per_print_data_head_size();
@@ -1154,6 +1154,16 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
         }
 
         fifo_in_commit(a_thread->producer.fifo, head_size + data->formatted_string_size);
+
+        struct event_pack e_pack = {
+            .type = EVENT_TYPE_LOG,
+            .data = a_thread,
+        };
+        /* todo, thread get/put */
+        ret = log_consumer_enque_wakeup(process_data.wthread, &e_pack);
+        if (ret) {
+            zc_error("failed to enque to consumer %d", ret);
+        }
     } else {
         va_start(args, format);
         zlog_event_set_fmt(a_thread->event,

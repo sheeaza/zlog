@@ -20,7 +20,6 @@
 #include "event.h"
 #include "buf.h"
 #include "mdc.h"
-#include "list.h"
 
 struct fifo_ref;
 
@@ -28,7 +27,6 @@ struct fifo_ref;
  * zlog_thread_t -
  *
  * @producer: used with writer thread
- *  @node: hook to wthread
  */
 typedef struct zlog_thread_s {
 	int init_version;
@@ -47,7 +45,6 @@ typedef struct zlog_thread_s {
         /* change per conf start */
         struct fifo *fifo;
         /* change per conf end */
-        struct list_head node;
         pthread_mutex_t *lock_ref;
     } producer;
 } zlog_thread_t;

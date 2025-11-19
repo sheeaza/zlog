@@ -876,7 +876,7 @@ zlog_rule_t *zlog_rule_new(char *line,
 		}
 
 		/* try to figure out if the log file path is dynamic or static */
-        if (conf->writer_thread.en) {
+        if (conf->log_consumer.en) {
 				a_rule->output_w = zlog_rule_output_fifo;
         } else if (a_rule->dynamic_specs) {
 			if (a_rule->archive_max_size <= 0) {

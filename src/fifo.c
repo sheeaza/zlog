@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <stdatomic.h>
 
 #include "zc_profile.h"
 #include "misc.h"
@@ -29,7 +30,8 @@ void fifo_destroy(struct fifo *fifo)
 /* todo: add mem fence */
 char *fifo_in_ref(struct fifo *fifo, unsigned int size)
 {
-	if (size > fifo_freed(fifo)) {
+    unsigned int free_size = fifo->size - (fifo->in - atomic_load_explicit(&fifo->out, memory_order_acquire));
+	if (size > free_size) {
         zc_error("fifo not enough space");
         return NULL;
 	}
@@ -40,22 +42,23 @@ char *fifo_in_ref(struct fifo *fifo, unsigned int size)
 void fifo_in_commit(struct fifo *fifo, unsigned int size)
 {
     assert(fifo_freed(fifo) > size);
-    fifo->in += size;
+    atomic_store_explicit(&fifo->in, fifo->in + size, memory_order_release);
 }
 
 unsigned int fifo_out_ref(struct fifo *fifo, char **buf)
 {
-    if (fifo_used(fifo) == 0)
+    unsigned int used_size = atomic_load_explicit(&fifo->in, memory_order_acquire) - fifo->out;
+    if (used_size == 0)
         return 0;
 
     *buf = &fifo->data[fifo->out];
-    return fifo_used(fifo);
+    return used_size;
 }
 
 void fifo_out_commit(struct fifo *fifo, unsigned int size)
 {
-    assert(size <= fifo_used(fifo));
-    fifo->out += size;
+    assert(size <= fifo_pushed(fifo));
+    atomic_store_explicit(&fifo->out, fifo->out + size, memory_order_release);
 }
 
 struct fifo_ref *fifo_ref_create(unsigned int size)

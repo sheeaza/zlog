@@ -4,24 +4,50 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-#include "list.h"
 #include "zc_xplatform.h"
+#include "fifo.h"
 
 struct zlog_conf_s;
-struct wthread_create_arg {
+struct logc_create_arg {
     struct zlog_conf_s *conf;
 };
 
 struct zlog_buf_s;
-struct wthread {
+struct log_consumer {
 	pthread_t tid;
-    struct list_head per_thread_data;
 	struct zlog_buf_s *msg_buf;
 	char time_str[MAXLEN_CFG_LINE + 1];
     bool exit;
+
+    struct {
+        pthread_mutex_t queue_in_lock;
+        struct fifo *queue;
+
+        pthread_mutex_t siglock;
+        pthread_cond_t cond;
+        unsigned int sig_send;
+        unsigned int sig_recv;
+    } event;
 };
 
-struct wthread *wthread_create(struct wthread_create_arg *arg);
-void wthread_destroy(struct wthread *wthread);
+enum event_type {
+    EVENT_TYPE_LOG = 1,
+    EVENT_TYPE_EXIT,
+};
+
+struct event_pack {
+    unsigned int type;
+    void *data;
+};
+
+struct log_consumer *log_consumer_create(struct logc_create_arg *arg);
+void log_consumer_destroy(struct log_consumer *logc);
+
+int log_consumer_enque_wakeup(struct log_consumer *logc, struct event_pack *pack);
+
+static inline unsigned int event_pack_size(void)
+{
+    return sizeof(struct event_pack);
+}
 
 #endif

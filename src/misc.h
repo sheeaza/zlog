@@ -6,10 +6,10 @@
 
 #define container_of(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
 
-struct wthread;
+struct log_consumer;
 struct zlog_process_data
 {
-    struct wthread *wthread;
+    struct log_consumer *wthread;
     pthread_mutex_t share_mutex;
 };
 
