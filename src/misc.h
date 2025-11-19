@@ -9,7 +9,7 @@
 struct log_consumer;
 struct zlog_process_data
 {
-    struct log_consumer *wthread;
+    struct log_consumer *logc;
     pthread_mutex_t share_mutex;
 };
 

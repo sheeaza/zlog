@@ -404,7 +404,6 @@ static int zlog_rule_output_fifo(zlog_rule_t * a_rule, struct zlog_output_data *
 		return -1;
 	}
 
-	/* not so thread safe here, as multiple thread may ++fsync_count at the same time */
 	if (a_rule->fsync_period && ++a_rule->fsync_count >= a_rule->fsync_period) {
 		a_rule->fsync_count = 0;
 		if (fsync(a_rule->static_fd)) {
@@ -877,7 +876,7 @@ zlog_rule_t *zlog_rule_new(char *line,
 
 		/* try to figure out if the log file path is dynamic or static */
         if (conf->log_consumer.en) {
-				a_rule->output_w = zlog_rule_output_fifo;
+				a_rule->output2 = zlog_rule_output_fifo;
         } else if (a_rule->dynamic_specs) {
 			if (a_rule->archive_max_size <= 0) {
 				a_rule->output = zlog_rule_output_dynamic_file_single;
@@ -1092,25 +1091,25 @@ int zlog_rule_output2(zlog_rule_t * a_rule, struct zlog_output_data *data)
 {
 	switch (a_rule->compare_char) {
 	case '*' :
-		return a_rule->output_w(a_rule, data);
+		return a_rule->output2(a_rule, data);
 		break;
 	case '.' :
 		if (data->pack->level >= a_rule->level) {
-			return a_rule->output_w(a_rule, data);
+			return a_rule->output2(a_rule, data);
 		} else {
 			return 0;
 		}
 		break;
 	case '=' :
 		if (data->pack->level == a_rule->level) {
-			return a_rule->output_w(a_rule, data);
+			return a_rule->output2(a_rule, data);
 		} else {
 			return 0;
 		}
 		break;
 	case '!' :
 		if (data->pack->level != a_rule->level) {
-			return a_rule->output_w(a_rule, data);
+			return a_rule->output2(a_rule, data);
 		} else {
 			return 0;
 		}

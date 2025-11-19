@@ -34,7 +34,7 @@ typedef struct zlog_rule_s zlog_rule_t;
 struct zlog_output_data;
 
 typedef int (*zlog_rule_output_fn) (zlog_rule_t * a_rule, zlog_thread_t * a_thread);
-typedef int (*zlog_rule_output_wthread_fn) (zlog_rule_t * a_rule, struct zlog_output_data *);
+typedef int (*zlog_rule_output_fn2) (zlog_rule_t * a_rule, struct zlog_output_data *);
 
 struct zlog_rule_s {
 	char category[MAXLEN_CFG_LINE + 1];
@@ -73,7 +73,7 @@ struct zlog_rule_s {
 
 	zlog_format_t *format;
 	zlog_rule_output_fn output;
-	zlog_rule_output_wthread_fn output_w;
+	zlog_rule_output_fn2 output2;
 
 	char record_name[MAXLEN_PATH + 1];
 	char record_path[MAXLEN_PATH + 1];

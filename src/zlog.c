@@ -55,7 +55,7 @@ static struct zlog_process_data process_data = {
 static void zlog_fini_inner(void)
 {
 	if (zlog_env_conf->log_consumer.en) {
-		log_consumer_destroy(process_data.wthread);
+		log_consumer_destroy(process_data.logc);
 	}
 
 	/* pthread_key_delete(zlog_thread_key); */
@@ -183,13 +183,13 @@ static int zlog_init_inner(const char *config)
 
 	if (zlog_env_conf->log_consumer.en) {
 		struct logc_create_arg arg = { .conf = zlog_env_conf };
-		struct log_consumer *wthread = log_consumer_create(&arg);
-		if (!wthread) {
-			zc_error("wthread_create fail");
+		struct log_consumer *logc = log_consumer_create(&arg);
+		if (!logc) {
+			zc_error("logc fail");
 			goto err;
 		}
 
-		process_data.wthread = wthread;
+		process_data.logc = logc;
 	}
 	return 0;
 err:
@@ -1160,7 +1160,7 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
             .data = a_thread,
         };
         /* todo, thread get/put */
-        ret = log_consumer_enque_wakeup(process_data.wthread, &e_pack);
+        ret = log_consumer_enque_wakeup(process_data.logc, &e_pack);
         if (ret) {
             zc_error("failed to enque to consumer %d", ret);
         }

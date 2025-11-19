@@ -155,37 +155,37 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 		return NULL;
 	}
 
-	struct log_consumer *wthread = calloc(1, sizeof(*wthread));
-	if (!wthread) {
+	struct log_consumer *logc = calloc(1, sizeof(*logc));
+	if (!logc) {
 		zc_error("pthread_attr_init failed");
 		goto free_attr;
 	}
 
-	wthread->msg_buf = zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
-	if (!wthread->msg_buf) {
+	logc->msg_buf = zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
+	if (!logc->msg_buf) {
 		zc_error("zlog_buf_new fail");
-		goto free_wthread;
+		goto free_logc;
 	}
 
-    ret = pthread_mutex_init(&wthread->event.queue_in_lock, NULL);
+    ret = pthread_mutex_init(&logc->event.queue_in_lock, NULL);
     if (ret) {
 		zc_error("pthread_mutex_init failed, %d", ret);
 		goto free_msgbuf;
     }
 
-    wthread->event.queue = fifo_create(arg->conf->log_consumer.consumer_msg_queue_len * sizeof(struct event_pack));
-    if (!wthread->event.queue) {
+    logc->event.queue = fifo_create(arg->conf->log_consumer.consumer_msg_queue_len * event_pack_size());
+    if (!logc->event.queue) {
 		zc_error("fifo_create msg queue failed");
         goto free_lock;
     }
 
-    ret = pthread_mutex_init(&wthread->event.siglock, NULL);
+    ret = pthread_mutex_init(&logc->event.siglock, NULL);
     if (ret) {
 		zc_error("pthread_mutex_init failed, %d", ret);
 		goto free_equeue;
     }
 
-    ret = pthread_cond_init(&wthread->event.cond, NULL);
+    ret = pthread_cond_init(&logc->event.cond, NULL);
     if (ret) {
 		zc_error("pthread_cond_init failed, %d", ret);
 		goto free_sig_lock;
@@ -193,48 +193,48 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 
     /* thread create must put at end */
 	pthread_t tid;
-	ret = pthread_create(&tid, &attr, logc_func, wthread);
+	ret = pthread_create(&tid, &attr, logc_func, logc);
 	if (ret) {
 		zc_error("pthread_create failed");
 		goto free_cond;
 	}
 
-	wthread->tid = tid;
+	logc->tid = tid;
 	goto free_attr;
 
 free_cond:
-    ret = pthread_cond_destroy(&wthread->event.cond);
+    ret = pthread_cond_destroy(&logc->event.cond);
 	if (ret) {
 		zc_error("pthread_cond_destroy failed, ignore");
 	}
 
 free_sig_lock:
-    ret = pthread_mutex_destroy(&wthread->event.siglock);
+    ret = pthread_mutex_destroy(&logc->event.siglock);
 	if (ret) {
 		zc_error("pthread_mutex_destroy failed, ignore");
 	}
 
 free_equeue:
-    fifo_destroy(wthread->event.queue);
+    fifo_destroy(logc->event.queue);
 
 free_lock:
-    ret = pthread_mutex_destroy(&wthread->event.queue_in_lock);
+    ret = pthread_mutex_destroy(&logc->event.queue_in_lock);
 	if (ret) {
 		zc_error("pthread_mutex_destroy failed, ignore");
 	}
 
 free_msgbuf:
-    zlog_buf_del(wthread->msg_buf);
-free_wthread:
-	free(wthread);
-	wthread = NULL;
+    zlog_buf_del(logc->msg_buf);
+free_logc:
+	free(logc);
+	logc = NULL;
 free_attr:
 	ret = pthread_attr_destroy(&attr);
 	if (ret) {
 		zc_error("pthread_attr_destroy failed, ignore");
 	}
 
-	return wthread;
+	return logc;
 }
 
 void log_consumer_destroy(struct log_consumer *logc)
