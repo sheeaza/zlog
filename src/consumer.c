@@ -11,7 +11,7 @@
 #include "rule.h"
 #include "conf.h"
 
-#include "wthread.h"
+#include "consumer.h"
 
 static int enque_event(struct log_consumer *logc, struct event_pack *pack)
 {

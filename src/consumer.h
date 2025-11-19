@@ -1,5 +1,5 @@
-#ifndef __wthread_h
-#define __wthread_h
+#ifndef __CONSUMER_H
+#define __CONSUMER_H
 
 #include <pthread.h>
 #include <stdbool.h>

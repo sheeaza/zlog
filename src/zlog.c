@@ -29,7 +29,7 @@
 #include "zc_defs.h"
 #include "rule.h"
 #include "version.h"
-#include "wthread.h"
+#include "consumer.h"
 #include "misc.h"
 #include "fifo.h"
 
