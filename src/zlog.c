@@ -26,6 +26,7 @@
 #include "category_table.h"
 #include "record_table.h"
 #include "mdc.h"
+#include "unistd.h"
 #include "zc_defs.h"
 #include "rule.h"
 #include "version.h"
@@ -856,7 +857,7 @@ XFUNC void vzlog(zlog_category_t * category,
 		file, filelen, func, funclen, line, level,
 		format, args);
 
-	if (zlog_category_output(category, a_thread)) {
+	if (zlog_category_output(category, a_thread, NULL)) {
 		zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
 		goto exit;
 	}
@@ -903,7 +904,7 @@ XFUNC void hzlog(zlog_category_t *category,
 		file, filelen, func, funclen, line, level,
 		buf, buflen);
 
-	if (zlog_category_output(category, a_thread)) {
+	if (zlog_category_output(category, a_thread, NULL)) {
 		zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
 		goto exit;
 	}
@@ -958,7 +959,7 @@ XFUNC void vdzlog(const char *file, size_t filelen,
 		file, filelen, func, funclen, line, level,
 		format, args);
 
-	if (zlog_category_output(zlog_default_category, a_thread)) {
+	if (zlog_category_output(zlog_default_category, a_thread, NULL)) {
 		zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
 		goto exit;
 	}
@@ -1011,7 +1012,7 @@ XFUNC void hdzlog(const char *file, size_t filelen,
 		file, filelen, func, funclen, line, level,
 		buf, buflen);
 
-	if (zlog_category_output(zlog_default_category, a_thread)) {
+	if (zlog_category_output(zlog_default_category, a_thread, NULL)) {
 		zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
 		goto exit;
 	}
@@ -1058,7 +1059,7 @@ XFUNC void zlog(zlog_category_t * category,
 	zlog_event_set_fmt(a_thread->event, category->name, category->name_len,
 		file, filelen, func, funclen, line, level,
 		format, args);
-	if (zlog_category_output(category, a_thread)) {
+	if (zlog_category_output(category, a_thread, NULL)) {
 		zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
 		va_end(args);
 		goto exit;
@@ -1171,7 +1172,7 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
                 file, filelen, func, funclen, line, level,
                 format, args);
 
-        if (zlog_category_output(zlog_default_category, a_thread)) {
+        if (zlog_category_output(zlog_default_category, a_thread, NULL)) {
             zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
             va_end(args);
             goto exit;

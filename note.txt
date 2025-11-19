@@ -66,3 +66,4 @@ pthread_cond
 
 todo:
     thread data refcnt
+    conf reload

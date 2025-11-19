@@ -37,8 +37,7 @@ void zlog_category_commit_rules(zlog_category_t * a_category);
 void zlog_category_rollback_rules(zlog_category_t * a_category);
 
 struct zlog_output_data;
-int zlog_category_output(zlog_category_t * a_category, zlog_thread_t * a_thread);
-int zlog_category_output2(zlog_category_t * a_category, struct zlog_output_data *data);
+int zlog_category_output(zlog_category_t * a_category, zlog_thread_t * a_thread, struct zlog_output_data *data);
 
 #define zlog_category_needless_level(a_category, lv) \
         a_category && (zlog_env_conf->level > lv || !((a_category->level_bitmap[lv/8] >> (7 - lv % 8)) & 0x01))

@@ -87,7 +87,7 @@ static void handle_log(struct log_consumer *logc, struct zlog_thread_s *thread)
            .time_str.len = sizeof(logc->time_str),
            .tmp_buf = logc->msg_buf,
        };
-       int ret = zlog_category_output2(category, &data);
+       int ret = zlog_category_output(category, NULL, &data);
        if (ret) {
            zc_error("failed to output %d", ret);
        }
