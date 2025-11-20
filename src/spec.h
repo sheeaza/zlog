@@ -60,8 +60,8 @@ void zlog_spec_profile(zlog_spec_t * a_spec, int flag);
 #define zlog_spec_gen_msg(a_spec, a_thread, data) \
 	a_spec->gen_msg(a_spec, a_thread, data)
 
-#define zlog_spec_gen_path(a_spec, a_thread) \
-	a_spec->gen_path(a_spec, a_thread, NULL)
+#define zlog_spec_gen_path(a_spec, a_thread, data) \
+	a_spec->gen_path(a_spec, a_thread, data)
 
 #define zlog_spec_gen_archive_path(a_spec, a_thread) \
 	a_spec->gen_archive_path(a_spec, a_thread, NULL)

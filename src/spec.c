@@ -31,6 +31,7 @@
 #include "level_list.h"
 #include "zc_defs.h"
 #include "misc.h"
+#include "category.h"
 
 #ifdef _WIN32
 #define ZLOG_DEFAULT_TIME_FMT "%Y-%m-%d %H:%M:%S"
@@ -68,7 +69,7 @@ static int zlog_spec_write_time_internal(zlog_spec_t * a_spec, zlog_thread_t * a
             localtime_r(&data->pack->ts.tv_sec, &time);
         }
 		size_t len = strftime(data->time_str.str, data->time_str.len, a_spec->time_fmt, &time);
-        return zlog_buf_append(data->tmp_buf, data->time_str.str, len);
+        return zlog_buf_append(a_buf, data->time_str.str, len);
     }
 
 	zlog_time_cache_t * a_cache = a_thread->event->time_caches + a_spec->time_cache_index;
@@ -147,7 +148,7 @@ static int zlog_spec_write_time_D(zlog_spec_t * a_spec, zlog_thread_t * a_thread
 static int zlog_spec_write_ms(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        return zlog_buf_printf_dec32(data->tmp_buf, data->pack->ts.tv_nsec / 1000000, 3);
+        return zlog_buf_printf_dec32(a_buf, data->pack->ts.tv_nsec / 1000000, 3);
     }
 
 	if (!a_thread->event->time_stamp.tv_sec) {
@@ -159,7 +160,7 @@ static int zlog_spec_write_ms(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zl
 static int zlog_spec_write_us(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        return zlog_buf_printf_dec32(data->tmp_buf, data->pack->ts.tv_nsec / 1000, 6);
+        return zlog_buf_printf_dec32(a_buf, data->pack->ts.tv_nsec / 1000, 6);
     }
 
 	if (!a_thread->event->time_stamp.tv_sec) {
@@ -188,11 +189,23 @@ static int zlog_spec_write_str(zlog_spec_t * a_spec, zlog_thread_t * a_thread, z
 
 static int zlog_spec_write_category(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
+    if (data) {
+        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
+        return zlog_buf_append(a_buf, data->pack->category->name, data->pack->category->name_len);
+        /* todo: add hex */
+    }
 	return zlog_buf_append(a_buf, a_thread->event->category_name, a_thread->event->category_name_len);
 }
 
 static int zlog_spec_write_srcfile(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
+    if (data) {
+        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
+        if (!data->pack->file) {
+            return zlog_buf_append(a_buf, "(file=null)", sizeof("(file=null)") - 1);
+        }
+        return zlog_buf_append(a_buf, data->pack->file, data->pack->filelen);
+    }
 	if (!a_thread->event->file) {
 		return zlog_buf_append(a_buf, "(file=null)", sizeof("(file=null)") - 1);
 	} else {
@@ -203,6 +216,17 @@ static int zlog_spec_write_srcfile(zlog_spec_t * a_spec, zlog_thread_t * a_threa
 static int zlog_spec_write_srcfile_neat(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
 	char *p;
+
+    if (data) {
+        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
+        if ((p = strrchr(data->pack->file, '/')) != NULL) {
+            return zlog_buf_append(a_buf, p + 1, (char*)data->pack->file + data->pack->filelen - p - 1);
+        }
+        if (!data->pack->file) {
+            return zlog_buf_append(a_buf, "(file=null)", sizeof("(file=null)") - 1);
+        }
+        return zlog_buf_append(a_buf, data->pack->file, data->pack->filelen);
+    }
 
 	if ((p = strrchr(a_thread->event->file, '/')) != NULL) {
 		return zlog_buf_append(a_buf, p + 1,
@@ -218,12 +242,24 @@ static int zlog_spec_write_srcfile_neat(zlog_spec_t * a_spec, zlog_thread_t * a_
 
 static int zlog_spec_write_srcline(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
+    if (data) {
+        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
+        return zlog_buf_printf_dec64(a_buf, data->pack->line, 0);
+    }
 
 	return zlog_buf_printf_dec64(a_buf, a_thread->event->line, 0);
 }
 
 static int zlog_spec_write_srcfunc(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
+    if (data) {
+        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
+        if (!data->pack->file) {
+            return zlog_buf_append(a_buf, "(func=null)", sizeof("(func=null)") - 1);
+        }
+        return zlog_buf_append(a_buf, data->pack->func, data->pack->funclen);
+    }
+
 	if (!a_thread->event->file) {
 		return zlog_buf_append(a_buf, "(func=null)", sizeof("(func=null)") - 1);
 	} else {
@@ -240,7 +276,7 @@ static int zlog_spec_write_hostname(zlog_spec_t * a_spec, zlog_thread_t * a_thre
 static int zlog_spec_write_newline(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        return zlog_buf_append(data->tmp_buf, FILE_NEWLINE, FILE_NEWLINE_LEN);
+        return zlog_buf_append(a_buf, FILE_NEWLINE, FILE_NEWLINE_LEN);
     }
 	return zlog_buf_append(a_buf, FILE_NEWLINE, FILE_NEWLINE_LEN);
 }
@@ -286,7 +322,7 @@ static int zlog_spec_write_tid_long(zlog_spec_t * a_spec, zlog_thread_t * a_thre
 	/* don't need to get tid again, as tmap_new_thread fetched it already */
 	/* and fork not change tid */
     if (data) {
-        return zlog_buf_append(data->tmp_buf, data->thread->event->tid_str, data->thread->event->tid_str_len);
+        return zlog_buf_append(a_buf, data->thread->event->tid_str, data->thread->event->tid_str_len);
     }
 	return zlog_buf_append(a_buf, a_thread->event->tid_str, a_thread->event->tid_str_len);
 }
@@ -303,7 +339,12 @@ static int zlog_spec_write_level_lowercase(zlog_spec_t * a_spec, zlog_thread_t *
 {
 	zlog_level_t *a_level;
 
-	a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
+    if (data) {
+        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
+        a_level = zlog_level_list_get(zlog_env_conf->levels,data->pack->level);
+    } else {
+        a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
+    }
 	return zlog_buf_append(a_buf, a_level->str_lowercase, a_level->str_len);
 }
 
@@ -311,7 +352,12 @@ static int zlog_spec_write_level_uppercase(zlog_spec_t * a_spec, zlog_thread_t *
 {
 	zlog_level_t *a_level;
 
-	a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
+    if (data) {
+        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
+        a_level = zlog_level_list_get(zlog_env_conf->levels,data->pack->level);
+    } else {
+        a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
+    }
 	return zlog_buf_append(a_buf, a_level->str_uppercase, a_level->str_len);
 }
 
@@ -320,7 +366,7 @@ static int zlog_spec_write_usrmsg(zlog_spec_t * a_spec, zlog_thread_t * a_thread
     if (data) {
         assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
         struct msg_per_print_str *str = (struct msg_per_print_str *)data->pack->data;
-        return zlog_buf_append(data->tmp_buf, str->formatted_string, str->formatted_string_size - 1);
+        return zlog_buf_append(a_buf, str->formatted_string, str->formatted_string_size - 1);
         /* todo: add hex */
     }
 	if (a_thread->event->generate_cmd == ZLOG_FMT) {

@@ -5,9 +5,6 @@
 
 #include "ref.h"
 
-/**
- * todo add mem fence, 1 in 1 out, lock free
- */
 struct fifo {
     unsigned int in;
     unsigned int out;

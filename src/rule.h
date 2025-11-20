@@ -55,6 +55,7 @@ struct zlog_rule_s {
 	int static_fd;
 	dev_t static_dev;
 	ino_t static_ino;
+    int rotate_fd;
 
 	long archive_max_size;
 	int archive_max_count;

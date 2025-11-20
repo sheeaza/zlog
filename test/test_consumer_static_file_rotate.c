@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 {
 	int rc;
 
-	rc = dzlog_init("test_file.conf", "default");
+	rc = dzlog_init("test_consumer_single_file_rotate.conf", "default");
 	if (rc) {
 		printf("init failed\n");
 		return -1;
@@ -36,3 +36,4 @@ int main(int argc, char** argv)
 	
 	return 0;
 }
+

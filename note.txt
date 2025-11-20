@@ -67,3 +67,9 @@ pthread_cond
 todo:
     thread data refcnt
     conf reload
+    zlog_spec_write_*, update
+    remove thread msg buf for consumer enabled.
+
+test:
+    add per zlog_spec_write_*
+    multi thread test
