@@ -36,12 +36,12 @@ char *fifo_in_ref(struct fifo *fifo, unsigned int size)
         return NULL;
 	}
 
-    return &fifo->data[fifo->in];
+    return &fifo->data[fifo->in % fifo->size];
 }
 
 void fifo_in_commit(struct fifo *fifo, unsigned int size)
 {
-    assert(fifo_freed(fifo) > size);
+    assert(fifo_freed(fifo) >= size);
     atomic_store_explicit(&fifo->in, fifo->in + size, memory_order_release);
 }
 
@@ -51,7 +51,7 @@ unsigned int fifo_out_ref(struct fifo *fifo, char **buf)
     if (used_size == 0)
         return 0;
 
-    *buf = &fifo->data[fifo->out];
+    *buf = &fifo->data[fifo->out % fifo->size];
     return used_size;
 }
 

@@ -29,8 +29,9 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	dzlog_info("hello, zlog");
-	dzlog_info("hello, zlog1");
+    for (int i = 0; i < 100000; i++) {
+        dzlog_info("hello, zlog %d", i);
+    }
 
 	zlog_fini();
 	

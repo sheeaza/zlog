@@ -30,6 +30,7 @@ static int enque_event(struct log_consumer *logc, struct event_pack *pack)
         goto exit;
     }
 
+    printf("freed %d\n", fifo_freed(logc->event.queue));
     struct event_pack *_pack = (struct event_pack *)buf;
     _pack->type = pack->type;
     _pack->data = pack->data;

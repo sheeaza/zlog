@@ -869,6 +869,7 @@ static void log(zlog_category_t * category,
         struct msg_pack *pack = (struct msg_pack *)buf;
         struct msg_per_print_str *data = (struct msg_per_print_str *)pack->data;
 
+        printf("freed %x, strsize %x, used %lx size %x\n", fifo_len, max_str_size, data->formatted_string - a_thread->producer.fifo->data, a_thread->producer.fifo->size);
         int ret = vsnprintf(data->formatted_string, max_str_size, format, args);
         if (ret < 0) {
             zc_error("failed to print to formatted_string ret %d", ret);
@@ -1069,7 +1070,7 @@ XFUNC void zlog(zlog_category_t * category,
 }
 
 /*******************************************************************************/
-void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, long line, int level,
+XFUNC void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, long line, int level,
 	const char *format, ...)
 {
 	va_list args;
