@@ -1036,77 +1036,25 @@ reload:
 }
 
 /*******************************************************************************/
-XFUNC void zlog(zlog_category_t * category,
+static void log(zlog_category_t * category,
 	const char *file, size_t filelen, const char *func, size_t funclen,
 	long line, const int level,
-	const char *format, ...)
+	const char *format, va_list args)
 {
 	zlog_thread_t *a_thread;
-	va_list args;
 
 	pthread_rwlock_rdlock(&zlog_env_lock);
 	
-	if (category && zlog_category_needless_level(category, level)) goto exit;
-
 	if (!zlog_env_is_init) {
 		zc_error("never call zlog_init() or dzlog_init() before");
 		goto exit;
 	}
 
-	zlog_fetch_thread(a_thread, exit);
+    if (!category) {
+        goto exit;
+    }
 
-	va_start(args, format);
-	zlog_event_set_fmt(a_thread->event, category->name, category->name_len,
-		file, filelen, func, funclen, line, level,
-		format, args);
-	if (zlog_category_output(category, a_thread, NULL)) {
-		zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
-		va_end(args);
-		goto exit;
-	}
-	va_end(args);
-
-	if (zlog_env_conf->reload_conf_period &&
-		++zlog_env_reload_conf_count > zlog_env_conf->reload_conf_period ) {
-		/* under the protection of lock read env conf */
-		goto reload;
-	}
-
-exit:
-	pthread_rwlock_unlock(&zlog_env_lock);
-	return;
-reload:
-	pthread_rwlock_unlock(&zlog_env_lock);
-	/* will be wrlock, so after unlock */
-	if (zlog_reload((char *)-1)) {
-		zc_error("reach reload-conf-period but zlog_reload fail, zlog-chk-conf [file] see detail");
-	}
-	return;
-}
-
-/*******************************************************************************/
-void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, long line, int level,
-	const char *format, ...)
-{
-	zlog_thread_t *a_thread;
-	va_list args;
-
-
-	pthread_rwlock_rdlock(&zlog_env_lock);
-
-	if (!zlog_env_is_init) {
-		zc_error("never call zlog_init() or dzlog_init() before");
-		goto exit;
-	}
-
-	/* that's the differnce, must judge default_category in lock */
-	if (!zlog_default_category) {
-		zc_error("zlog_default_category is null,"
-			"dzlog_init() or dzlog_set_cateogry() is not called above");
-		goto exit;
-	}
-
-	if (zlog_category_needless_level(zlog_default_category, level)) goto exit;
+	if (zlog_category_needless_level(category, level)) goto exit;
 
 	zlog_fetch_thread(a_thread, exit);
 
@@ -1124,9 +1072,7 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
         struct msg_pack *pack = (struct msg_pack *)buf;
         struct msg_per_print_str *data = (struct msg_per_print_str *)pack->data;
 
-        va_start(args, format);
         int ret = vsnprintf(data->formatted_string, max_str_size, format, args);
-        va_end(args);
         if (ret < 0) {
             zc_error("failed to print to formatted_string ret %d", ret);
             goto exit;
@@ -1141,7 +1087,7 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
         }
         
         pack->type = MSG_TYPE_PER_PRINT_DATA;
-        pack->category = zlog_default_category;
+        pack->category = category;
         pack->file = file;
         pack->filelen = filelen;
         pack->func = func;
@@ -1166,18 +1112,13 @@ void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, l
             zc_error("failed to enque to consumer %d", ret);
         }
     } else {
-        va_start(args, format);
-        zlog_event_set_fmt(a_thread->event,
-                zlog_default_category->name, zlog_default_category->name_len,
-                file, filelen, func, funclen, line, level,
-                format, args);
-
-        if (zlog_category_output(zlog_default_category, a_thread, NULL)) {
+        zlog_event_set_fmt(a_thread->event, category->name, category->name_len,
+            file, filelen, func, funclen, line, level,
+            format, args);
+        if (zlog_category_output(category, a_thread, NULL)) {
             zc_error("zlog_output fail, srcfile[%s], srcline[%ld]", file, line);
-            va_end(args);
             goto exit;
         }
-        va_end(args);
     }
 
 	if (zlog_env_conf->reload_conf_period &&
@@ -1196,6 +1137,29 @@ reload:
 		zc_error("reach reload-conf-period but zlog_reload fail, zlog-chk-conf [file] see detail");
 	}
 	return;
+}
+
+XFUNC void zlog(zlog_category_t * category,
+	const char *file, size_t filelen, const char *func, size_t funclen,
+	long line, const int level,
+	const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+    log(category, file, filelen, func, funclen, line, level, format, args);
+	va_end(args);
+}
+
+/*******************************************************************************/
+void dzlog(const char *file, size_t filelen, const char *func, size_t funclen, long line, int level,
+	const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+    log(zlog_default_category, file, filelen, func, funclen, line, level, format, args);
+	va_end(args);
 }
 
 /*******************************************************************************/
