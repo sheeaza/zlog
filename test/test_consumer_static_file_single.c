@@ -30,6 +30,7 @@ int main(int argc, char** argv)
 	}
 
     for (int i = 0; i < 100000; i++) {
+    /* for (int i = 0; i < 1; i++) { */
         dzlog_info("hello, zlog %d", i);
     }
 

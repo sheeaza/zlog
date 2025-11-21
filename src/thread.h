@@ -21,8 +21,6 @@
 #include "buf.h"
 #include "mdc.h"
 
-struct fifo_ref;
-
 /**
  * zlog_thread_t -
  *
@@ -46,6 +44,7 @@ typedef struct zlog_thread_s {
         struct fifo *fifo;
         /* change per conf end */
         pthread_mutex_t *lock_ref;
+        unsigned int log_cnt;
     } producer;
 } zlog_thread_t;
 

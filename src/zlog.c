@@ -856,7 +856,7 @@ static void log(zlog_category_t * category,
 	zlog_fetch_thread(a_thread, exit);
 
     if (zlog_env_conf->log_consumer.en) {
-        unsigned int fifo_len = fifo_freed(a_thread->producer.fifo);
+        unsigned int fifo_len = fifo_unused(a_thread->producer.fifo);
         char *buf = fifo_in_ref(a_thread->producer.fifo, fifo_len);
         unsigned int head_size = msg_pack_head_size() + msg_per_print_data_head_size();
         if (head_size > fifo_len) {
@@ -869,7 +869,7 @@ static void log(zlog_category_t * category,
         struct msg_pack *pack = (struct msg_pack *)buf;
         struct msg_per_print_str *data = (struct msg_per_print_str *)pack->data;
 
-        printf("freed %x, strsize %x, used %lx size %x\n", fifo_len, max_str_size, data->formatted_string - a_thread->producer.fifo->data, a_thread->producer.fifo->size);
+        printf("freed %x, strsize %x, used %lx size %x\n", fifo_len, max_str_size, data->formatted_string - a_thread->producer.fifo->data, a_thread->producer.fifo->mask);
         int ret = vsnprintf(data->formatted_string, max_str_size, format, args);
         if (ret < 0) {
             zc_error("failed to print to formatted_string ret %d", ret);
@@ -899,15 +899,21 @@ static void log(zlog_category_t * category,
         }
 
         fifo_in_commit(a_thread->producer.fifo, head_size + data->formatted_string_size);
+        a_thread->producer.log_cnt++;
 
-        struct event_pack e_pack = {
-            .type = EVENT_TYPE_LOG,
-            .data = a_thread,
-        };
         /* todo, thread get/put */
-        ret = log_consumer_enque_wakeup(process_data.logc, &e_pack);
-        if (ret) {
-            zc_error("failed to enque to consumer %d", ret);
+        while (a_thread->producer.log_cnt) {
+            struct event_pack e_pack = {
+                .type = EVENT_TYPE_LOG,
+                .data = a_thread,
+            };
+            ret = log_consumer_enque_wakeup(process_data.logc, &e_pack);
+            if (ret) {
+                zc_error("failed to enque to consumer %d, cnt %d", ret, a_thread->producer.log_cnt);
+                break;
+            }
+            /* success */
+            a_thread->producer.log_cnt--;
         }
     } else {
         zlog_event_set_fmt(a_thread->event, category->name, category->name_len,

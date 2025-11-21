@@ -30,7 +30,7 @@ static int enque_event(struct log_consumer *logc, struct event_pack *pack)
         goto exit;
     }
 
-    printf("freed %d\n", fifo_freed(logc->event.queue));
+    printf("freed %d\n", fifo_unused(logc->event.queue));
     struct event_pack *_pack = (struct event_pack *)buf;
     _pack->type = pack->type;
     _pack->data = pack->data;
@@ -48,7 +48,7 @@ static void enque_event_exit(struct log_consumer *logc)
     for (;;) {
         char *buf = fifo_in_ref(logc->event.queue, event_pack_size());
         if (!buf) {
-            zc_error("not enough space, retry, queue free %d", fifo_freed(logc->event.queue));
+            zc_error("not enough space, retry, queue free %d", fifo_unused(logc->event.queue));
             /* todo add sleep here */
             continue;
         }
@@ -133,7 +133,7 @@ static void *logc_func(void *arg)
             handle_log(logc, pack.data);
             break;
         case EVENT_TYPE_EXIT:
-            assert(!fifo_pushed(logc->event.queue));
+            assert(!fifo_used(logc->event.queue));
             exit = true;
             break;
         default:

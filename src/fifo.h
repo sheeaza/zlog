@@ -1,15 +1,20 @@
 #ifndef __FIFO_H
 #define __FIFO_H
 
-#include <pthread.h>
+#include <stdio.h>
 
-#include "ref.h"
+/* todo: optimize page size macro */
+#define PAGE_SIZE 4096
 
 struct fifo {
-    unsigned int in;
-    unsigned int out;
-    unsigned int size;
-    char data[];
+    unsigned char *base_addr;
+    unsigned base_addr_len;
+
+    unsigned in;
+    unsigned out;
+    unsigned mask;
+    int memfd;
+    _Alignas(PAGE_SIZE) char data[];
 };
 
 struct fifo *fifo_create(unsigned int size);
@@ -21,24 +26,20 @@ void fifo_in_commit(struct fifo *fifo, unsigned int size);
 unsigned int fifo_out_ref(struct fifo *fifo, char **buf);
 void fifo_out_commit(struct fifo *fifo, unsigned int size);
 
-static inline unsigned int fifo_pushed(struct fifo *fifo)
+static inline size_t fifo_size(struct fifo *fifo)
+{
+    return fifo->mask + 1;
+}
+
+static inline unsigned int fifo_used(struct fifo *fifo)
 {
 	return fifo->in - fifo->out;
 }
 
-static inline unsigned int fifo_freed(struct fifo *fifo)
+static inline unsigned int fifo_unused(struct fifo *fifo)
 {
-	return fifo->size - (fifo->in - fifo->out);
+	return fifo_size(fifo) - fifo_used(fifo);
 }
 
-
-struct fifo_ref {
-	struct fifo *fifo;
-	struct ref ref;
-};
-
-struct fifo_ref *fifo_ref_create(unsigned int size);
-
-void fifo_ref_release(struct ref *ref);
 
 #endif
