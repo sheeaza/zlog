@@ -366,6 +366,10 @@ static int zlog_spec_write_usrmsg(zlog_spec_t * a_spec, zlog_thread_t * a_thread
     if (data) {
         assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
         struct msg_per_print_str *str = (struct msg_per_print_str *)data->pack->data;
+        if (str->formatted_string_size == 0) {
+            return 0;
+        }
+        printf(
         return zlog_buf_append(a_buf, str->formatted_string, str->formatted_string_size - 1);
         /* todo: add hex */
     }

@@ -107,7 +107,7 @@ char *fifo_in_ref(struct fifo *fifo, unsigned int size)
 {
     unsigned int free_size = fifo_size(fifo) - (fifo->in - atomic_load_explicit(&fifo->out, memory_order_acquire));
 	if (size > free_size) {
-        zc_error("fifo not enough space");
+        /* zc_error("fifo not enough space"); */
         return NULL;
 	}
 

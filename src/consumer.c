@@ -19,18 +19,17 @@ static int enque_event(struct log_consumer *logc, struct event_pack *pack)
 
     pthread_mutex_lock(&logc->event.queue_in_lock);
     if (logc->exit) {
-        zc_debug("log consumer exited, return");
+        zc_error("log consumer exited, return");
         goto exit;
     }
 
     char *buf = fifo_in_ref(logc->event.queue, event_pack_size());
     if (!buf) {
-        zc_error("not enough space");
+        /* zc_error("not enough space"); */
         ret = 1;
         goto exit;
     }
 
-    printf("freed %d\n", fifo_unused(logc->event.queue));
     struct event_pack *_pack = (struct event_pack *)buf;
     _pack->type = pack->type;
     _pack->data = pack->data;
@@ -141,7 +140,6 @@ static void *logc_func(void *arg)
             break;
         }
     }
-    zc_debug("exit");
 	return NULL;
 }
 
@@ -248,6 +246,7 @@ void log_consumer_destroy(struct log_consumer *logc)
 		zc_error("pthread_join failed %d, ignore", ret);
 	}
 
+    printf("exit cnt sig send %d, sig re %d\n", logc->event.sig_send, logc->event.sig_recv);
     /* todo, check if need free all event in queue, exit enough ? */
 
     fifo_destroy(logc->event.queue);

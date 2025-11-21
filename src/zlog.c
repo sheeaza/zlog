@@ -869,7 +869,6 @@ static void log(zlog_category_t * category,
         struct msg_pack *pack = (struct msg_pack *)buf;
         struct msg_per_print_str *data = (struct msg_per_print_str *)pack->data;
 
-        printf("freed %x, strsize %x, used %lx size %x\n", fifo_len, max_str_size, data->formatted_string - a_thread->producer.fifo->data, a_thread->producer.fifo->mask);
         int ret = vsnprintf(data->formatted_string, max_str_size, format, args);
         if (ret < 0) {
             zc_error("failed to print to formatted_string ret %d", ret);
@@ -878,7 +877,9 @@ static void log(zlog_category_t * category,
 
         if (ret >= max_str_size) {
             zc_error("warning truncated");
-            data->formatted_string[max_str_size - 1] = '\0';
+            if (max_str_size != 0) {
+                data->formatted_string[max_str_size - 1] = '\0';
+            }
             data->formatted_string_size = max_str_size;
         } else {
             data->formatted_string_size = ret + 1;
@@ -909,7 +910,7 @@ static void log(zlog_category_t * category,
             };
             ret = log_consumer_enque_wakeup(process_data.logc, &e_pack);
             if (ret) {
-                zc_error("failed to enque to consumer %d, cnt %d", ret, a_thread->producer.log_cnt);
+                /* zc_error("failed to enque to consumer %d, cnt %d", ret, a_thread->producer.log_cnt); */
                 break;
             }
             /* success */

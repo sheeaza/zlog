@@ -69,6 +69,7 @@ todo:
     conf reload
     zlog_spec_write_*, update
     remove thread msg buf for consumer enabled.
+    use single fifo to consumer, instead of per thread
 
 test:
     add per zlog_spec_write_*

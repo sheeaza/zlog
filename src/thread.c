@@ -58,6 +58,7 @@ void zlog_thread_del(zlog_thread_t * a_thread)
         fifo_destroy(a_thread->producer.fifo);
 		a_thread->producer.fifo = NULL;
 		a_thread->producer.lock_ref = NULL;
+        printf("exit cnt %d\n", a_thread->producer.log_cnt);
 	}
 	if (a_thread->mdc)
 		zlog_mdc_del(a_thread->mdc);
