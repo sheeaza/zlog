@@ -26,6 +26,17 @@ void fifo_in_commit(struct fifo *fifo, unsigned int size);
 unsigned int fifo_out_ref(struct fifo *fifo, char **buf);
 void fifo_out_commit(struct fifo *fifo, unsigned int size);
 
+/**
+ * fifo_in_reserve -
+ *
+ * @size: not include struct msg_head
+ */
+struct msg_head *fifo_reserve(struct fifo *fifo, unsigned int size);
+void fifo_commit(struct fifo *fifo, struct msg_head *head);
+
+struct msg_head *fifo_peek(struct fifo *fifo);
+void fifo_out(struct fifo *fifo, struct msg_head *head);
+
 static inline size_t fifo_size(struct fifo *fifo)
 {
     return fifo->mask + 1;

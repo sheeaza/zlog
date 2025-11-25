@@ -64,9 +64,9 @@ static int zlog_spec_write_time_internal(zlog_spec_t * a_spec, zlog_thread_t * a
     if (data) {
         struct tm time;
         if (use_utc) {
-            gmtime_r(&data->pack->ts.tv_sec, &time); /* perf point */
+            gmtime_r(&data->meta->ts.tv_sec, &time); /* perf point */
         } else {
-            localtime_r(&data->pack->ts.tv_sec, &time);/* perf point */
+            localtime_r(&data->meta->ts.tv_sec, &time);/* perf point */
         }
         size_t len = strftime(data->time_str.str, data->time_str.len, a_spec->time_fmt, &time);/* perf point */
         return zlog_buf_append(a_buf, data->time_str.str, len);
@@ -148,7 +148,7 @@ static int zlog_spec_write_time_D(zlog_spec_t * a_spec, zlog_thread_t * a_thread
 static int zlog_spec_write_ms(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        return zlog_buf_printf_dec32(a_buf, data->pack->ts.tv_nsec / 1000000, 3);
+        return zlog_buf_printf_dec32(a_buf, data->meta->ts.tv_nsec / 1000000, 3);
     }
 
 	if (!a_thread->event->time_stamp.tv_sec) {
@@ -160,7 +160,7 @@ static int zlog_spec_write_ms(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zl
 static int zlog_spec_write_us(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        return zlog_buf_printf_dec32(a_buf, data->pack->ts.tv_nsec / 1000, 6);
+        return zlog_buf_printf_dec32(a_buf, data->meta->ts.tv_nsec / 1000, 6);
     }
 
 	if (!a_thread->event->time_stamp.tv_sec) {
@@ -190,8 +190,7 @@ static int zlog_spec_write_str(zlog_spec_t * a_spec, zlog_thread_t * a_thread, z
 static int zlog_spec_write_category(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        return zlog_buf_append(a_buf, data->pack->category->name, data->pack->category->name_len);
+        return zlog_buf_append(a_buf, data->meta->category->name, data->meta->category->name_len);
         /* todo: add hex */
     }
 	return zlog_buf_append(a_buf, a_thread->event->category_name, a_thread->event->category_name_len);
@@ -200,11 +199,10 @@ static int zlog_spec_write_category(zlog_spec_t * a_spec, zlog_thread_t * a_thre
 static int zlog_spec_write_srcfile(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        if (!data->pack->file) {
+        if (!data->meta->file) {
             return zlog_buf_append(a_buf, "(file=null)", sizeof("(file=null)") - 1);
         }
-        return zlog_buf_append(a_buf, data->pack->file, data->pack->filelen);
+        return zlog_buf_append(a_buf, data->meta->file, data->meta->filelen);
     }
 	if (!a_thread->event->file) {
 		return zlog_buf_append(a_buf, "(file=null)", sizeof("(file=null)") - 1);
@@ -218,14 +216,13 @@ static int zlog_spec_write_srcfile_neat(zlog_spec_t * a_spec, zlog_thread_t * a_
 	char *p;
 
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        if ((p = strrchr(data->pack->file, '/')) != NULL) {
-            return zlog_buf_append(a_buf, p + 1, (char*)data->pack->file + data->pack->filelen - p - 1);
+        if ((p = strrchr(data->meta->file, '/')) != NULL) {
+            return zlog_buf_append(a_buf, p + 1, (char*)data->meta->file + data->meta->filelen - p - 1);
         }
-        if (!data->pack->file) {
+        if (!data->meta->file) {
             return zlog_buf_append(a_buf, "(file=null)", sizeof("(file=null)") - 1);
         }
-        return zlog_buf_append(a_buf, data->pack->file, data->pack->filelen);
+        return zlog_buf_append(a_buf, data->meta->file, data->meta->filelen);
     }
 
 	if ((p = strrchr(a_thread->event->file, '/')) != NULL) {
@@ -243,8 +240,7 @@ static int zlog_spec_write_srcfile_neat(zlog_spec_t * a_spec, zlog_thread_t * a_
 static int zlog_spec_write_srcline(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        return zlog_buf_printf_dec64(a_buf, data->pack->line, 0);
+        return zlog_buf_printf_dec64(a_buf, data->meta->line, 0);
     }
 
 	return zlog_buf_printf_dec64(a_buf, a_thread->event->line, 0);
@@ -253,11 +249,10 @@ static int zlog_spec_write_srcline(zlog_spec_t * a_spec, zlog_thread_t * a_threa
 static int zlog_spec_write_srcfunc(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        if (!data->pack->file) {
+        if (!data->meta->file) {
             return zlog_buf_append(a_buf, "(func=null)", sizeof("(func=null)") - 1);
         }
-        return zlog_buf_append(a_buf, data->pack->func, data->pack->funclen);
+        return zlog_buf_append(a_buf, data->meta->func, data->meta->funclen);
     }
 
 	if (!a_thread->event->file) {
@@ -340,8 +335,7 @@ static int zlog_spec_write_level_lowercase(zlog_spec_t * a_spec, zlog_thread_t *
 	zlog_level_t *a_level;
 
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        a_level = zlog_level_list_get(zlog_env_conf->levels,data->pack->level);
+        a_level = zlog_level_list_get(zlog_env_conf->levels,data->meta->level);
     } else {
         a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
     }
@@ -353,8 +347,7 @@ static int zlog_spec_write_level_uppercase(zlog_spec_t * a_spec, zlog_thread_t *
 	zlog_level_t *a_level;
 
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        a_level = zlog_level_list_get(zlog_env_conf->levels,data->pack->level);
+        a_level = zlog_level_list_get(zlog_env_conf->levels,data->meta->level);
     } else {
         a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
     }
@@ -364,8 +357,8 @@ static int zlog_spec_write_level_uppercase(zlog_spec_t * a_spec, zlog_thread_t *
 static int zlog_spec_write_usrmsg(zlog_spec_t * a_spec, zlog_thread_t * a_thread, zlog_buf_t * a_buf, struct zlog_output_data *data)
 {
     if (data) {
-        assert(data->pack->type == MSG_TYPE_PER_PRINT_DATA);
-        struct msg_per_print_str *str = (struct msg_per_print_str *)data->pack->data;
+        assert(data->usr_str);
+        struct msg_usr_str *str = (struct msg_usr_str *)data->usr_str;
         if (str->formatted_string_size == 0) {
             return 0;
         }

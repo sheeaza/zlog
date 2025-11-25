@@ -136,3 +136,44 @@ void fifo_out_commit(struct fifo *fifo, unsigned int size)
     assert(size <= fifo_used(fifo));
     atomic_store_explicit(&fifo->out, fifo->out + size, memory_order_release);
 }
+
+struct msg_head *fifo_reserve(struct fifo *fifo, unsigned int size)
+{
+    unsigned int free_size = fifo_size(fifo) - (fifo->in - atomic_load_explicit(&fifo->out, memory_order_acquire));
+    unsigned total_size = size + msg_head_size();
+	if (total_size > free_size) {
+        zc_error("fifo not enough space");
+        return NULL;
+	}
+
+    struct msg_head *head = (struct msg_head *)&fifo->data[fifo->in & fifo->mask];
+    head->total_size = total_size;
+    head->flags = MSG_HEAD_FLAG_RESERVED;
+
+    atomic_store_explicit(&fifo->in, fifo->in + total_size, memory_order_release);
+    return head;
+}
+
+void fifo_commit(struct fifo *fifo, struct msg_head *head)
+{
+    atomic_store_explicit(&head->flags, MSG_HEAD_FLAG_COMMITED, memory_order_release);
+    /* todo: store release ?
+     * if need wakeup
+     */
+}
+
+struct msg_head *fifo_peek(struct fifo *fifo)
+{
+    unsigned int used_size = atomic_load_explicit(&fifo->in, memory_order_acquire) - fifo->out;
+    if (used_size == 0)
+        return NULL;
+
+    struct msg_head *head = (struct msg_head *)&fifo->data[fifo->out & fifo->mask];
+
+    return head;
+}
+
+void fifo_out(struct fifo *fifo, struct msg_head *head)
+{
+    atomic_store_explicit(&fifo->out, fifo->out + head->total_size, memory_order_release);
+}

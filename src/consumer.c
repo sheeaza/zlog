@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <assert.h>
+#include <stdatomic.h>
 
 #include "zc_profile.h"
 #include "thread.h"
@@ -45,6 +46,23 @@ static void enque_event_exit(struct log_consumer *logc)
     assert(!pthread_mutex_lock(&logc->event.queue_in_lock));
     logc->exit = true; /* ensure this is the last */
     for (;;) {
+        struct msg_head *head = fifo_reserve(logc->event.queue, msg_cmd_size());
+        if (!head) {
+            zc_error("not enough space, retry, queue free %d", fifo_unused(logc->event.queue));
+            /* todo add sleep here */
+            continue;
+        }
+        struct msg_cmd *cmd = (struct msg_cmd *)head->data;
+        cmd->type.type = MSG_TYPE_CMD;
+        cmd->cmd = MSG_CMD_EXIT;
+        fifo_commit(logc->event.queue, head);
+        break;
+    }
+    assert(!pthread_mutex_unlock(&logc->event.queue_in_lock));
+#if 0
+    assert(!pthread_mutex_lock(&logc->event.queue_in_lock));
+    logc->exit = true; /* ensure this is the last */
+    for (;;) {
         char *buf = fifo_in_ref(logc->event.queue, event_pack_size());
         if (!buf) {
             zc_error("not enough space, retry, queue free %d", fifo_unused(logc->event.queue));
@@ -57,6 +75,7 @@ static void enque_event_exit(struct log_consumer *logc)
         break;
     }
     assert(!pthread_mutex_unlock(&logc->event.queue_in_lock));
+#endif
 }
 
 static void enque_signal(struct log_consumer *logc)
@@ -67,8 +86,58 @@ static void enque_signal(struct log_consumer *logc)
     assert(!pthread_mutex_unlock(&logc->event.siglock));
 }
 
-static void handle_log(struct log_consumer *logc, struct zlog_thread_s *thread)
+static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *exit)
 {
+    struct msg_meta *meta = NULL;
+    struct msg_usr_str *str = NULL;
+
+    unsigned payload_size = head->total_size - msg_head_size();
+
+    for (unsigned offset = 0; offset < payload_size;) {
+        struct msg_type *msg_type = (struct msg_type *)&head->data[offset];
+        switch (msg_type->type) {
+            case MSG_TYPE_META:
+                meta = (struct msg_meta *)msg_type;
+                offset += msg_meta_size();
+                break;
+            case MSG_TYPE_USR_STR:
+                str = (struct msg_usr_str *)msg_type;
+                offset += str->total_size;
+                break;
+            case MSG_TYPE_CMD: {
+                struct msg_cmd *cmd = (struct msg_cmd *)msg_type;
+                if (cmd->cmd == MSG_CMD_EXIT) {
+                    *exit = true;
+                    return;
+                }
+                offset += msg_cmd_size();
+                break;
+            }
+            default:
+                zc_error("invalid msg type %d", msg_type->type);
+                offset = payload_size;
+                break;
+        }
+    }
+
+    if (meta == NULL) {
+        zc_error("no meta in packet");
+        return;
+    }
+
+    struct zlog_output_data data = {
+        .thread = meta->thread,
+        .meta = meta,
+        .usr_str = str,
+        .time_str.str = logc->time_str,
+        .time_str.len = sizeof(logc->time_str),
+        .tmp_buf = logc->msg_buf,
+    };
+    int ret = zlog_category_output(meta->category, NULL, &data);
+    if (ret) {
+        zc_error("failed to output %d", ret);
+    }
+#if 0
    struct fifo *fifo = thread->producer.fifo;
 
    char *buf;
@@ -78,7 +147,7 @@ static void handle_log(struct log_consumer *logc, struct zlog_thread_s *thread)
    struct msg_pack *pack = (struct msg_pack *)buf;
 
    switch (pack->type) {
-   case MSG_TYPE_PER_PRINT_DATA: {
+   case MSG_TYPE_USR_STR: {
        zlog_category_t *category = pack->category;
        struct zlog_output_data data = {
            .pack = pack,
@@ -92,7 +161,7 @@ static void handle_log(struct log_consumer *logc, struct zlog_thread_s *thread)
            zc_error("failed to output %d", ret);
        }
        unsigned int pack_size = msg_pack_head_size() + msg_per_print_data_head_size() +
-                                ((struct msg_per_print_str *)pack->data)->formatted_string_size;
+                                ((struct msg_usr_str *)pack->data)->formatted_string_size;
        fifo_out_commit(fifo, pack_size);
        break;
    }
@@ -100,26 +169,44 @@ static void handle_log(struct log_consumer *logc, struct zlog_thread_s *thread)
        break;
    }
    /* todo: thread put */
+#endif
 }
 
 static void *logc_func(void *arg)
 {
     struct log_consumer *logc = arg;
     bool exit = false;
-    for (; !exit;) {
+    unsigned prev_sig_send = 0;
+    for (bool prev_sig_send_valid = false; !exit;) {
         pthread_mutex_lock(&logc->event.siglock);
         /* impossible */
         if (logc->event.sig_recv > logc->event.sig_send) {
             assert(0);
         }
         /* empty */
-        if (logc->event.sig_recv == logc->event.sig_send) {
+        if (logc->event.sig_recv == logc->event.sig_send ||
+            (prev_sig_send_valid && prev_sig_send == logc->event.sig_send)) {
             pthread_cond_wait(&logc->event.cond, &logc->event.siglock);
         }
-        logc->event.sig_recv++;
+        prev_sig_send = logc->event.sig_send;
         pthread_mutex_unlock(&logc->event.siglock);
         /* has data */
 
+        logc->event.sig_recv++;
+        struct msg_head *head = fifo_peek(logc->event.queue);
+        assert(head);
+        unsigned flag = atomic_load_explicit(&head->flags, memory_order_acquire);
+        if (flag == MSG_HEAD_FLAG_RESERVED) {
+            /* not commit yet, continue wait */
+            prev_sig_send_valid = true;
+            continue;
+        }
+        prev_sig_send_valid = false;
+        assert(flag == MSG_HEAD_FLAG_COMMITED);
+
+        handle_log(logc, head, &exit);
+        fifo_out(logc->event.queue, head);
+#if 0
         char *buf;
         unsigned int size = fifo_out_ref(logc->event.queue, &buf);
         assert(size >= event_pack_size());
@@ -139,6 +226,7 @@ static void *logc_func(void *arg)
             zc_error("invalid pack type %d", pack.type);
             break;
         }
+#endif
     }
 	return NULL;
 }
@@ -172,7 +260,7 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 		goto free_msgbuf;
     }
 
-    logc->event.queue = fifo_create(arg->conf->log_consumer.consumer_msg_queue_len * event_pack_size());
+    logc->event.queue = fifo_create(arg->conf->log_consumer.consumer_msg_queue_len);
     if (!logc->event.queue) {
 		zc_error("fifo_create msg queue failed");
         goto free_lock;
@@ -273,4 +361,28 @@ int log_consumer_enque_wakeup(struct log_consumer *logc, struct event_pack *pack
     enque_signal(logc);
 
     return ret;
+}
+
+struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned size)
+{
+    struct msg_head *head = NULL;
+
+    pthread_mutex_lock(&logc->event.queue_in_lock);
+    if (logc->exit) {
+        zc_error("log consumer exited, return");
+        goto exit;
+    }
+
+    head = fifo_reserve(logc->event.queue, size);
+
+exit:
+    pthread_mutex_unlock(&logc->event.queue_in_lock);
+
+    return head;
+}
+
+void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head *head)
+{
+    fifo_commit(logc->event.queue, head);
+    enque_signal(logc);
 }

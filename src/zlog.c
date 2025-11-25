@@ -15,6 +15,7 @@
 
 #include "fmacros.h"
 
+#include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -856,19 +857,38 @@ static void log(zlog_category_t * category,
 	zlog_fetch_thread(a_thread, exit);
 
     if (zlog_env_conf->log_consumer.en) {
-        unsigned int fifo_len = fifo_unused(a_thread->producer.fifo);
-        char *buf = fifo_in_ref(a_thread->producer.fifo, fifo_len);
-        unsigned int head_size = msg_pack_head_size() + msg_per_print_data_head_size();
-        if (head_size > fifo_len) {
-            zc_error("fifo full, %u > free %u", head_size, fifo_len);
+        unsigned msg_size = 0;
+        msg_size += msg_meta_size();
+        int ret = vsnprintf(NULL, 0, format, args);
+        if (ret < 0) {
+            zc_error("failed to print to formatted_string ret %d", ret);
+            goto exit;
+        }
+
+        unsigned usr_str_size = ret + 1;
+        unsigned usr_str_size_aligned = roundup(usr_str_size, sizeof(long));
+        msg_size += usr_str_size + msg_usr_str_size();
+
+        struct msg_head *head = log_consumer_queue_reserve(process_data.logc, msg_size);
+        if (!head) {
+            zc_error("fifo no enough mem %u > free %u", msg_size, fifo_unused(process_data.logc->event.queue));
             a_thread->producer.full_cnt++;
+            goto exit;
+        }
+
+        struct msg_meta *meta = (struct msg_meta *)head->data;
+        struct msg_usr_str *usr_str = (struct msg_usr_str *)(head->data + msg_meta_size());
+
+        ret = vsnprintf(usr_str->formatted_string, max_str_size, format, args);
+        if (ret < 0) {
+            zc_error("failed to print to formatted_string ret %d", ret);
             goto exit;
         }
 
         assert(buf);
         unsigned int max_str_size = fifo_len - head_size;
         struct msg_pack *pack = (struct msg_pack *)buf;
-        struct msg_per_print_str *data = (struct msg_per_print_str *)pack->data;
+        struct msg_usr_str *data = (struct msg_usr_str *)pack->data;
 
         int ret = vsnprintf(data->formatted_string, max_str_size, format, args);
         if (ret < 0) {
@@ -886,7 +906,7 @@ static void log(zlog_category_t * category,
             data->formatted_string_size = ret + 1;
         }
         
-        pack->type = MSG_TYPE_PER_PRINT_DATA;
+        pack->type = MSG_TYPE_USR_STR;
         pack->category = category;
         pack->file = file;
         pack->filelen = filelen;

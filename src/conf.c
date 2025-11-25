@@ -737,6 +737,7 @@ static int zlog_conf_parse_line(zlog_conf_t * a_conf, char *line, int *section)
 			}
 		} else if (STRCMP(word_1, ==, "fifo_size")) {
 			a_conf->log_consumer.producer_fifo_size = zc_parse_byte_size(value);
+            a_conf->log_consumer.consumer_msg_queue_len = zc_parse_byte_size(value);
 		} else {
 			zc_error("name[%s] is not any one of global options", name);
 			if (a_conf->strict_init) return -1;

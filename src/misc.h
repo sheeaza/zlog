@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <pthread.h>
+#include <stdalign.h>
 
 #define container_of(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
 
@@ -13,9 +14,51 @@ struct zlog_process_data
     pthread_mutex_t share_mutex;
 };
 
-enum msg_type {
-    MSG_TYPE_STRING = 1,
-    MSG_TYPE_PER_PRINT_DATA,
+enum _msg_type {
+    MSG_TYPE_NOP = 1,
+    MSG_TYPE_META,
+    MSG_TYPE_USR_STR,
+    MSG_TYPE_CMD,
+};
+
+enum _msg_cmd {
+    MSG_CMD_EXIT = 1,
+};
+
+enum msg_head_flag {
+    MSG_HEAD_FLAG_RESERVED = 1,
+    MSG_HEAD_FLAG_COMMITED,
+};
+
+struct msg_head {
+    unsigned total_size;
+    unsigned flags;
+
+    char data[];
+};
+
+struct msg_type {
+    unsigned long type;
+};
+
+struct msg_cmd {
+    struct msg_type type;
+    unsigned cmd;
+};
+
+struct zlog_category_s;
+struct zlog_thread_s;
+struct msg_meta {
+    struct msg_type type;
+    struct zlog_category_s *category;
+    const char *file;
+    size_t filelen;
+    const char *func;
+    size_t funclen;
+    long line;
+    int level;
+    struct timespec ts;
+    struct zlog_thread_s *thread;
 };
 
 struct msg_pack {
@@ -32,8 +75,9 @@ struct msg_pack {
     char data[];
 };
 
-struct zlog_category_s;
-struct msg_per_print_str {
+struct msg_usr_str {
+    struct msg_type type;
+    unsigned total_size;
     unsigned int formatted_string_size;
     char formatted_string[];
 };
@@ -41,7 +85,8 @@ struct msg_per_print_str {
 struct zlog_thread_s;
 struct zlog_output_data {
     struct zlog_thread_s *thread;
-    struct msg_pack *pack;
+    struct msg_meta *meta;
+    struct msg_usr_str *usr_str;
     struct zlog_buf_s *tmp_buf;
     struct {
         char *str;
@@ -49,14 +94,28 @@ struct zlog_output_data {
     } time_str;
 };
 
+static inline unsigned int msg_head_size(void)
+{
+    return sizeof(struct msg_head);
+}
+
 static inline unsigned int msg_pack_head_size(void)
 {
     return sizeof(struct msg_pack);
 }
 
-static inline unsigned int msg_per_print_data_head_size(void)
+static inline unsigned int msg_usr_str_size(void)
 {
-    return sizeof(struct msg_per_print_str);
+    return sizeof(struct msg_usr_str);
 }
 
+static inline unsigned int msg_meta_size(void)
+{
+    return sizeof(struct msg_meta);
+}
+
+static inline unsigned int msg_cmd_size(void)
+{
+    return sizeof(struct msg_cmd);
+}
 #endif
