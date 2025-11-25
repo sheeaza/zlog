@@ -53,7 +53,7 @@ static void enque_event_exit(struct log_consumer *logc)
             continue;
         }
         struct msg_cmd *cmd = (struct msg_cmd *)head->data;
-        cmd->type.type = MSG_TYPE_CMD;
+        cmd->type.val = MSG_TYPE_CMD;
         cmd->cmd = MSG_CMD_EXIT;
         fifo_commit(logc->event.queue, head);
         break;
@@ -95,7 +95,7 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
 
     for (unsigned offset = 0; offset < payload_size;) {
         struct msg_type *msg_type = (struct msg_type *)&head->data[offset];
-        switch (msg_type->type) {
+        switch (msg_type->val) {
             case MSG_TYPE_META:
                 meta = (struct msg_meta *)msg_type;
                 offset += msg_meta_size();
@@ -114,7 +114,7 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
                 break;
             }
             default:
-                zc_error("invalid msg type %d", msg_type->type);
+                zc_error("invalid msg type %d", msg_type->val);
                 offset = payload_size;
                 break;
         }
@@ -192,7 +192,6 @@ static void *logc_func(void *arg)
         pthread_mutex_unlock(&logc->event.siglock);
         /* has data */
 
-        logc->event.sig_recv++;
         struct msg_head *head = fifo_peek(logc->event.queue);
         assert(head);
         unsigned flag = atomic_load_explicit(&head->flags, memory_order_acquire);
@@ -201,10 +200,16 @@ static void *logc_func(void *arg)
             prev_sig_send_valid = true;
             continue;
         }
-        prev_sig_send_valid = false;
-        assert(flag == MSG_HEAD_FLAG_COMMITED);
 
-        handle_log(logc, head, &exit);
+        logc->event.sig_recv++;
+        if (flag == MSG_HEAD_FLAG_COMMITED) {
+            handle_log(logc, head, &exit);
+        } else if (flag == MSG_HEAD_FLAG_DISCARDED) {
+        } else {
+            assert(1);
+        }
+        prev_sig_send_valid = false;
+
         fifo_out(logc->event.queue, head);
 #if 0
         char *buf;
@@ -381,8 +386,12 @@ exit:
     return head;
 }
 
-void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head *head)
+void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head *head, bool discard)
 {
-    fifo_commit(logc->event.queue, head);
+    if (discard) {
+        fifo_discard(logc->event.queue, head);
+    } else {
+        fifo_commit(logc->event.queue, head);
+    }
     enque_signal(logc);
 }

@@ -162,6 +162,14 @@ void fifo_commit(struct fifo *fifo, struct msg_head *head)
      */
 }
 
+void fifo_discard(struct fifo *fifo, struct msg_head *head)
+{
+    atomic_store_explicit(&head->flags, MSG_HEAD_FLAG_DISCARDED, memory_order_release);
+    /* todo: store release ?
+     * if need wakeup
+     */
+}
+
 struct msg_head *fifo_peek(struct fifo *fifo)
 {
     unsigned int used_size = atomic_load_explicit(&fifo->in, memory_order_acquire) - fifo->out;

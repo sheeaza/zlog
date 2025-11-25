@@ -52,6 +52,6 @@ static inline unsigned int event_pack_size(void)
 
 struct msg_head;
 struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned size);
-void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head *head);
+void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head *head, bool discard);
 
 #endif

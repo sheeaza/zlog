@@ -52,13 +52,11 @@ void zlog_thread_profile(zlog_thread_t * a_thread, int flag)
 void zlog_thread_del(zlog_thread_t * a_thread)
 {
 	zc_assert(a_thread,);
-	if (a_thread->producer.fifo) {
+	if (a_thread->producer.en) {
 		/* todo: use refcnt to manage lifecyle, last one free */
 		/* writer thread enabled */
-        fifo_destroy(a_thread->producer.fifo);
-		a_thread->producer.fifo = NULL;
 		a_thread->producer.lock_ref = NULL;
-        printf("exit remain to enque event cnt %d, fullcnt %d\n", a_thread->producer.log_cnt, a_thread->producer.full_cnt);
+        printf("fullcnt %d\n", a_thread->producer.full_cnt);
 	}
 	if (a_thread->mdc)
 		zlog_mdc_del(a_thread->mdc);
@@ -136,12 +134,7 @@ zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf
 	}
 
 	if (conf->log_consumer.en) {
-		a_thread->producer.fifo = fifo_create(conf->log_consumer.producer_fifo_size);
-		if (!a_thread->producer.fifo) {
-			zc_error("fifo_create fail");
-			goto err;
-		}
-
+        a_thread->producer.en = true;
 		a_thread->producer.lock_ref = &pdata->share_mutex;
 	}
 

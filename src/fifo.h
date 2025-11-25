@@ -33,6 +33,7 @@ void fifo_out_commit(struct fifo *fifo, unsigned int size);
  */
 struct msg_head *fifo_reserve(struct fifo *fifo, unsigned int size);
 void fifo_commit(struct fifo *fifo, struct msg_head *head);
+void fifo_discard(struct fifo *fifo, struct msg_head *head);
 
 struct msg_head *fifo_peek(struct fifo *fifo);
 void fifo_out(struct fifo *fifo, struct msg_head *head);

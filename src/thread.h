@@ -16,6 +16,8 @@
 #ifndef __zlog_thread_h
 #define  __zlog_thread_h
 
+#include <stdbool.h>
+
 #include "zc_defs.h"
 #include "event.h"
 #include "buf.h"
@@ -41,10 +43,9 @@ typedef struct zlog_thread_s {
 
     struct {
         /* change per conf start */
-        struct fifo *fifo;
+        bool en;
         /* change per conf end */
         pthread_mutex_t *lock_ref;
-        unsigned int log_cnt;
         unsigned int full_cnt;
     } producer;
 } zlog_thread_t;

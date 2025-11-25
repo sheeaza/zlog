@@ -48,7 +48,6 @@ typedef struct zlog_conf_s {
 
 	struct {
 		bool en;
-		size_t producer_fifo_size;
 		size_t consumer_msg_queue_len;
 	} log_consumer;
 } zlog_conf_t;

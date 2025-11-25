@@ -28,6 +28,7 @@ enum _msg_cmd {
 enum msg_head_flag {
     MSG_HEAD_FLAG_RESERVED = 1,
     MSG_HEAD_FLAG_COMMITED,
+    MSG_HEAD_FLAG_DISCARDED,
 };
 
 struct msg_head {
@@ -38,7 +39,7 @@ struct msg_head {
 };
 
 struct msg_type {
-    unsigned long type;
+    unsigned long val;
 };
 
 struct msg_cmd {

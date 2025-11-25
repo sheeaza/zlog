@@ -15,13 +15,13 @@
 
 #include "fmacros.h"
 
-#include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
 #include <assert.h>
+#include <sys/param.h>
 
 #include "conf.h"
 #include "category_table.h"
@@ -824,7 +824,75 @@ XFUNC int zlog_level_switch(zlog_category_t * category, int level)
 }
 
 /*******************************************************************************/
-static void log(zlog_category_t * category,
+static void log_producer_send(zlog_thread_t *a_thread, zlog_category_t * category,
+	const char *file, size_t filelen, const char *func, size_t funclen,
+	long line, const int level,
+	const char *format, va_list args)
+{
+    unsigned msg_size = 0;
+    msg_size += msg_meta_size();
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int ret = vsnprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+    if (ret < 0) {
+        zc_error("failed to print to formatted_string ret %d", ret);
+        return;
+    }
+
+    unsigned usr_str_size = ret + 1;
+    unsigned usr_str_total_size_aligned = roundup(usr_str_size + msg_usr_str_size(), sizeof(long));
+    msg_size += usr_str_total_size_aligned;
+
+    struct msg_head *head = log_consumer_queue_reserve(process_data.logc, msg_size);
+    if (!head) {
+        zc_error("fifo no enough mem %u > free %u", msg_size, fifo_unused(process_data.logc->event.queue));
+        a_thread->producer.full_cnt++;
+        return;
+    }
+
+    struct msg_meta *meta = (struct msg_meta *)head->data;
+    struct msg_usr_str *usr_str = (struct msg_usr_str *)(head->data + msg_meta_size());
+
+    ret = vsnprintf(usr_str->formatted_string, usr_str_size, format, args);
+    if (ret < 0) {
+        /* should not happend */
+        zc_error("failed to print to formatted_string ret %d", ret);
+        goto discard;
+    }
+    if (ret >= usr_str_size) {
+        zc_error("warning truncated");
+        usr_str->formatted_string[usr_str_size - 1] = '\0';
+    }
+    usr_str->formatted_string_size = usr_str_size;
+    usr_str->total_size = usr_str_total_size_aligned;
+    usr_str->type.val = MSG_TYPE_USR_STR;
+
+    meta->type.val = MSG_TYPE_META;
+    meta->category = category;
+    meta->file = file;
+    meta->filelen = filelen;
+    meta->func = func;
+    meta->funclen = funclen;
+    meta->line = line;
+    meta->level = level;
+    meta->thread = a_thread; /* todo, refcnt */
+    ret = clock_gettime(CLOCK_REALTIME, &meta->ts); /* todo: CLOCK_MONOTONIC  ? */
+    if (ret) {
+        zc_error("failed to get ts ret %d", ret);
+        goto discard;
+    }
+
+    log_consumer_queue_commit_signal(process_data.logc, head, false);
+
+    /* todo, thread get/put */
+    return;
+
+discard:
+    log_consumer_queue_commit_signal(process_data.logc, head, true);
+}
+
+static void _log(zlog_category_t * category,
 	const char *file, size_t filelen, const char *func, size_t funclen,
 	long line, const int level,
 	const char *format, va_list args)
@@ -857,86 +925,8 @@ static void log(zlog_category_t * category,
 	zlog_fetch_thread(a_thread, exit);
 
     if (zlog_env_conf->log_consumer.en) {
-        unsigned msg_size = 0;
-        msg_size += msg_meta_size();
-        int ret = vsnprintf(NULL, 0, format, args);
-        if (ret < 0) {
-            zc_error("failed to print to formatted_string ret %d", ret);
-            goto exit;
-        }
-
-        unsigned usr_str_size = ret + 1;
-        unsigned usr_str_size_aligned = roundup(usr_str_size, sizeof(long));
-        msg_size += usr_str_size + msg_usr_str_size();
-
-        struct msg_head *head = log_consumer_queue_reserve(process_data.logc, msg_size);
-        if (!head) {
-            zc_error("fifo no enough mem %u > free %u", msg_size, fifo_unused(process_data.logc->event.queue));
-            a_thread->producer.full_cnt++;
-            goto exit;
-        }
-
-        struct msg_meta *meta = (struct msg_meta *)head->data;
-        struct msg_usr_str *usr_str = (struct msg_usr_str *)(head->data + msg_meta_size());
-
-        ret = vsnprintf(usr_str->formatted_string, max_str_size, format, args);
-        if (ret < 0) {
-            zc_error("failed to print to formatted_string ret %d", ret);
-            goto exit;
-        }
-
-        assert(buf);
-        unsigned int max_str_size = fifo_len - head_size;
-        struct msg_pack *pack = (struct msg_pack *)buf;
-        struct msg_usr_str *data = (struct msg_usr_str *)pack->data;
-
-        int ret = vsnprintf(data->formatted_string, max_str_size, format, args);
-        if (ret < 0) {
-            zc_error("failed to print to formatted_string ret %d", ret);
-            goto exit;
-        }
-
-        if (ret >= max_str_size) {
-            zc_error("warning truncated");
-            if (max_str_size != 0) {
-                data->formatted_string[max_str_size - 1] = '\0';
-            }
-            data->formatted_string_size = max_str_size;
-        } else {
-            data->formatted_string_size = ret + 1;
-        }
-        
-        pack->type = MSG_TYPE_USR_STR;
-        pack->category = category;
-        pack->file = file;
-        pack->filelen = filelen;
-        pack->func = func;
-        pack->funclen = funclen;
-        pack->line = line;
-        pack->level = level;
-        ret = clock_gettime(CLOCK_REALTIME, &pack->ts); /* todo: CLOCK_MONOTONIC  ? */
-        if (ret) {
-            zc_error("failed to get ts ret %d", ret);
-            goto exit;
-        }
-
-        fifo_in_commit(a_thread->producer.fifo, head_size + data->formatted_string_size);
-        a_thread->producer.log_cnt++;
-
-        /* todo, thread get/put */
-        while (a_thread->producer.log_cnt) {
-            struct event_pack e_pack = {
-                .type = EVENT_TYPE_LOG,
-                .data = a_thread,
-            };
-            ret = log_consumer_enque_wakeup(process_data.logc, &e_pack);
-            if (ret) {
-                /* zc_error("failed to enque to consumer %d, cnt %d", ret, a_thread->producer.log_cnt); */
-                break;
-            }
-            /* success */
-            a_thread->producer.log_cnt--;
-        }
+        log_producer_send(a_thread, zlog_default_category, file, filelen, func, funclen, line,
+                          level, format, args);
     } else {
         zlog_event_set_fmt(a_thread->event, category->name, category->name_len,
             file, filelen, func, funclen, line, level,
@@ -971,7 +961,7 @@ XFUNC void vzlog(zlog_category_t * category,
 	long line, int level,
 	const char *format, va_list args)
 {
-    log(category, file, filelen, func, funclen, line, level, format, args);
+    _log(category, file, filelen, func, funclen, line, level, format, args);
 }
 
 XFUNC void hzlog(zlog_category_t *category,
@@ -1028,7 +1018,7 @@ XFUNC void vdzlog(const char *file, size_t filelen,
 	long line, int level,
 	const char *format, va_list args)
 {
-    log(zlog_default_category, file, filelen, func, funclen, line, level, format, args);
+    _log(zlog_default_category, file, filelen, func, funclen, line, level, format, args);
 }
 
 XFUNC void hdzlog(const char *file, size_t filelen,
@@ -1093,7 +1083,7 @@ XFUNC void zlog(zlog_category_t * category,
 	va_list args;
 
 	va_start(args, format);
-    log(category, file, filelen, func, funclen, line, level, format, args);
+    _log(category, file, filelen, func, funclen, line, level, format, args);
 	va_end(args);
 }
 
@@ -1104,7 +1094,7 @@ XFUNC void dzlog(const char *file, size_t filelen, const char *func, size_t func
 	va_list args;
 
 	va_start(args, format);
-    log(zlog_default_category, file, filelen, func, funclen, line, level, format, args);
+    _log(zlog_default_category, file, filelen, func, funclen, line, level, format, args);
 	va_end(args);
 }
 
