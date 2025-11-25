@@ -1,3 +1,4 @@
+#define _GNU_SOURCE // For distros like Centos for syscall interface
 #include <stdlib.h>
 #include <assert.h>
 #include <stdatomic.h>

@@ -100,7 +100,7 @@ static int zlog_rule_output_static_file_single(zlog_rule_t * a_rule, zlog_thread
 	}
 
 	/* check if the output file was changed by an external tool by comparing the inode to our saved off one */
-	if (stat(a_rule->file_path, &stb)) {
+	if (stat(a_rule->file_path, &stb)) { /* perf point */
 		if (errno != ENOENT) {
 			zc_error("stat fail on [%s], errno[%d]", a_rule->file_path, errno);
 			return -1;
@@ -140,7 +140,7 @@ static int zlog_rule_output_static_file_single(zlog_rule_t * a_rule, zlog_thread
     } else {
         msg_buf = a_thread->msg_buf;
     }
-	if (write(a_rule->static_fd,
+	if (write(a_rule->static_fd, /* perf point */
 			zlog_buf_str(msg_buf),
 			zlog_buf_len(msg_buf)) < 0) {
 		zc_error("write fail, errno[%d]", errno);

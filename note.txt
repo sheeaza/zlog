@@ -79,8 +79,11 @@ consumer fifo size config
 
 perf:
     perf record -F 999 -g -- ./test_consumer_static_file_single
+    localtime_r/strftime per log call overhead.
+
 asan:
     LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/11/libasan.so ASAN_OPTIONS=detect_leaks=1 ./test_consumer_static_record
 
 bug:
-    circle buf boundary
+    circle buf boundary -> fixed by double map
+

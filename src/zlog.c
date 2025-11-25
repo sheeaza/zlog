@@ -861,6 +861,7 @@ static void log(zlog_category_t * category,
         unsigned int head_size = msg_pack_head_size() + msg_per_print_data_head_size();
         if (head_size > fifo_len) {
             zc_error("fifo full, %u > free %u", head_size, fifo_len);
+            a_thread->producer.full_cnt++;
             goto exit;
         }
 
