@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <stdlib.h>
 
 #include "zlog.h"
 
@@ -29,11 +28,12 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	dzlog_info("hello, zlog");
-	dzlog_info("hello, zlog1");
+        for (int i = 0; i < 3; i++) {
+            dzlog_info("hello, zlog %d", i);
+        }
 
-	zlog_fini();
-	
-	return 0;
+        zlog_fini();
+
+        return 0;
 }
 

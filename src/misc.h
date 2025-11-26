@@ -62,20 +62,6 @@ struct msg_meta {
     struct zlog_thread_s *thread;
 };
 
-struct msg_pack {
-    unsigned int type;
-    struct zlog_category_s *category;
-    const char *file;
-    size_t filelen;
-    const char *func;
-    size_t funclen;
-    long line;
-    int level;
-    struct timespec ts;
-
-    char data[];
-};
-
 struct msg_usr_str {
     struct msg_type type;
     unsigned total_size;
@@ -98,11 +84,6 @@ struct zlog_output_data {
 static inline unsigned int msg_head_size(void)
 {
     return sizeof(struct msg_head);
-}
-
-static inline unsigned int msg_pack_head_size(void)
-{
-    return sizeof(struct msg_pack);
 }
 
 static inline unsigned int msg_usr_str_size(void)
