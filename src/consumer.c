@@ -14,33 +14,6 @@
 
 #include "consumer.h"
 
-static int enque_event(struct log_consumer *logc, struct event_pack *pack)
-{
-    int ret = 0;
-
-    pthread_mutex_lock(&logc->event.queue_in_lock);
-    if (logc->exit) {
-        zc_error("log consumer exited, return");
-        goto exit;
-    }
-
-    char *buf = fifo_in_ref(logc->event.queue, event_pack_size());
-    if (!buf) {
-        /* zc_error("not enough space"); */
-        ret = 1;
-        goto exit;
-    }
-
-    struct event_pack *_pack = (struct event_pack *)buf;
-    _pack->type = pack->type;
-    _pack->data = pack->data;
-    fifo_in_commit(logc->event.queue, event_pack_size());
-
-exit:
-    pthread_mutex_unlock(&logc->event.queue_in_lock);
-    return ret;
-}
-
 static void enque_event_exit(struct log_consumer *logc)
 {
     assert(!pthread_mutex_lock(&logc->event.queue_in_lock));
@@ -59,23 +32,6 @@ static void enque_event_exit(struct log_consumer *logc)
         break;
     }
     assert(!pthread_mutex_unlock(&logc->event.queue_in_lock));
-#if 0
-    assert(!pthread_mutex_lock(&logc->event.queue_in_lock));
-    logc->exit = true; /* ensure this is the last */
-    for (;;) {
-        char *buf = fifo_in_ref(logc->event.queue, event_pack_size());
-        if (!buf) {
-            zc_error("not enough space, retry, queue free %d", fifo_unused(logc->event.queue));
-            /* todo add sleep here */
-            continue;
-        }
-        struct event_pack *pack = (struct event_pack *)buf;
-        pack->type = EVENT_TYPE_EXIT;
-        fifo_in_commit(logc->event.queue, event_pack_size());
-        break;
-    }
-    assert(!pthread_mutex_unlock(&logc->event.queue_in_lock));
-#endif
 }
 
 static void enque_signal(struct log_consumer *logc)
@@ -137,39 +93,6 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
     if (ret) {
         zc_error("failed to output %d", ret);
     }
-#if 0
-   struct fifo *fifo = thread->producer.fifo;
-
-   char *buf;
-   unsigned int len = fifo_out_ref(fifo, &buf);
-   assert(len > 0);
-
-   struct msg_pack *pack = (struct msg_pack *)buf;
-
-   switch (pack->type) {
-   case MSG_TYPE_USR_STR: {
-       zlog_category_t *category = pack->category;
-       struct zlog_output_data data = {
-           .pack = pack,
-           .thread = thread,
-           .time_str.str = logc->time_str,
-           .time_str.len = sizeof(logc->time_str),
-           .tmp_buf = logc->msg_buf,
-       };
-       int ret = zlog_category_output(category, NULL, &data);
-       if (ret) {
-           zc_error("failed to output %d", ret);
-       }
-       unsigned int pack_size = msg_pack_head_size() + msg_per_print_data_head_size() +
-                                ((struct msg_usr_str *)pack->data)->formatted_string_size;
-       fifo_out_commit(fifo, pack_size);
-       break;
-   }
-   default:
-       break;
-   }
-   /* todo: thread put */
-#endif
 }
 
 static void *logc_func(void *arg)
@@ -211,27 +134,6 @@ static void *logc_func(void *arg)
         prev_sig_send_valid = false;
 
         fifo_out(logc->event.queue, head);
-#if 0
-        char *buf;
-        unsigned int size = fifo_out_ref(logc->event.queue, &buf);
-        assert(size >= event_pack_size());
-        struct event_pack *p_pack = (struct event_pack *)buf;
-        struct event_pack pack = *p_pack;
-        fifo_out_commit(logc->event.queue, event_pack_size());
-
-        switch (pack.type) {
-        case EVENT_TYPE_LOG:
-            handle_log(logc, pack.data);
-            break;
-        case EVENT_TYPE_EXIT:
-            assert(!fifo_used(logc->event.queue));
-            exit = true;
-            break;
-        default:
-            zc_error("invalid pack type %d", pack.type);
-            break;
-        }
-#endif
     }
 	return NULL;
 }
@@ -354,18 +256,6 @@ void log_consumer_destroy(struct log_consumer *logc)
 
     zlog_buf_del(logc->msg_buf);
 	free(logc);
-}
-
-int log_consumer_enque_wakeup(struct log_consumer *logc, struct event_pack *pack)
-{
-    int ret = 0;
-
-    ret = enque_event(logc, pack);
-    if (ret)
-        return ret;
-    enque_signal(logc);
-
-    return ret;
 }
 
 struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned size)

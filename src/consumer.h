@@ -43,8 +43,6 @@ struct event_pack {
 struct log_consumer *log_consumer_create(struct logc_create_arg *arg);
 void log_consumer_destroy(struct log_consumer *logc);
 
-int log_consumer_enque_wakeup(struct log_consumer *logc, struct event_pack *pack);
-
 static inline unsigned int event_pack_size(void)
 {
     return sizeof(struct event_pack);
