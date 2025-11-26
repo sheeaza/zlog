@@ -20,6 +20,6 @@ exec 1>&2
   
 if [ "$clangformatout" != "" ]  
 then
-    $clangformatpy
+    $clangformatpy --staged
     exit 0
 fi

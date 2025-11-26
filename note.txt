@@ -74,6 +74,7 @@ todo:
 test:
     add per zlog_spec_write_*
     multi thread test
+    add mdc test
 
 consumer fifo size config
 

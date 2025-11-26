@@ -60,25 +60,28 @@ static void zlog_fini_inner(void)
         return;
     }
 
-        if (zlog_env_conf->log_consumer.en) {
-		log_consumer_destroy(process_data.logc);
-	}
+    if (zlog_env_conf->log_consumer.en) {
+        log_consumer_destroy(process_data.logc);
+    }
 
-	/* pthread_key_delete(zlog_thread_key); */
-	/* never use pthread_key_delete,
-	 * it will cause other thread can't release zlog_thread_t 
-	 * after one thread call pthread_key_delete
-	 * also key not init will cause a core dump
-	 */
+    /* pthread_key_delete(zlog_thread_key); */
+    /* never use pthread_key_delete,
+     * it will cause other thread can't release zlog_thread_t
+     * after one thread call pthread_key_delete
+     * also key not init will cause a core dump
+     */
 
-	if (zlog_env_categories) zlog_category_table_del(zlog_env_categories);
-	zlog_env_categories = NULL;
-	zlog_default_category = NULL;
-	if (zlog_env_records) zlog_record_table_del(zlog_env_records);
-	zlog_env_records = NULL;
-	if (zlog_env_conf) zlog_conf_del(zlog_env_conf);
-	zlog_env_conf = NULL;
-	return;
+    if (zlog_env_categories)
+        zlog_category_table_del(zlog_env_categories);
+    zlog_env_categories = NULL;
+    zlog_default_category = NULL;
+    if (zlog_env_records)
+        zlog_record_table_del(zlog_env_records);
+    zlog_env_records = NULL;
+    if (zlog_env_conf)
+        zlog_conf_del(zlog_env_conf);
+    zlog_env_conf = NULL;
+    return;
 }
 
 static void zlog_clean_rest_thread(void)
