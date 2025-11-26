@@ -56,7 +56,11 @@ static struct zlog_process_data process_data = {
 /* inner no need thread-safe */
 static void zlog_fini_inner(void)
 {
-	if (zlog_env_conf->log_consumer.en) {
+    if (!zlog_env_conf) {
+        return;
+    }
+
+        if (zlog_env_conf->log_consumer.en) {
 		log_consumer_destroy(process_data.logc);
 	}
 
