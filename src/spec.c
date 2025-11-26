@@ -489,11 +489,11 @@ static int zlog_spec_gen_msg_reformat(zlog_spec_t * a_spec, zlog_thread_t * a_th
 
         rc = a_spec->write_buf(a_spec, a_thread, pre_msg_buf, data);
         if (rc < 0) {
-		zc_error("a_spec->gen_buf fail");
-		return -1;
-	} else if (rc > 0) {
-		/* buf is full, try printf */
-	}
+            zc_error("a_spec->gen_buf fail");
+            return -1;
+        } else if (rc > 0) {
+            /* buf is full, try printf */
+        }
 
         return zlog_buf_adjust_append(msg_buf, zlog_buf_str(pre_msg_buf), zlog_buf_len(pre_msg_buf),
                                       a_spec->left_adjust, a_spec->left_fill_zeros,

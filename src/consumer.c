@@ -127,6 +127,7 @@ static void *logc_func(void *arg)
 
         logc->event.sig_recv++;
         if (flag == MSG_HEAD_FLAG_COMMITED) {
+            sleep(1);
             handle_log(logc, head, &exit);
         } else if (flag == MSG_HEAD_FLAG_DISCARDED) {
         } else {
@@ -266,7 +267,7 @@ void log_consumer_destroy(struct log_consumer *logc)
 
         zlog_buf_del(logc->pre_msg_buf);
         zlog_buf_del(logc->msg_buf);
-	free(logc);
+        free(logc);
 }
 
 struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned size)

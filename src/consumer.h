@@ -18,17 +18,17 @@ struct log_consumer {
 	struct zlog_buf_s *msg_buf;
         struct zlog_buf_s *pre_msg_buf;
         char time_str[MAXLEN_CFG_LINE + 1];
-    bool exit;
+        bool exit;
 
-    struct {
-        pthread_mutex_t queue_in_lock;
-        struct fifo *queue;
+        struct {
+            pthread_mutex_t queue_in_lock;
+            struct fifo *queue;
 
-        pthread_mutex_t siglock;
-        pthread_cond_t cond;
-        unsigned int sig_send;
-        unsigned int sig_recv;
-    } event;
+            pthread_mutex_t siglock;
+            pthread_cond_t cond;
+            unsigned int sig_send;
+            unsigned int sig_recv;
+        } event;
 };
 
 enum event_type {

@@ -1105,34 +1105,34 @@ int zlog_rule_output(zlog_rule_t * a_rule, zlog_thread_t * a_thread, struct zlog
     } else {
         event = a_thread->event;
     }
-        switch (a_rule->compare_char) {
-	case '*' :
-		return a_rule->output(a_rule, a_thread, data);
-		break;
-	case '.' :
-            if (event->level >= a_rule->level) {
-                return a_rule->output(a_rule, a_thread, data);
-            } else {
-                return 0;
-            }
-                break;
-	case '=' :
-            if (event->level == a_rule->level) {
-                return a_rule->output(a_rule, a_thread, data);
-            } else {
-                return 0;
-            }
-                break;
-	case '!' :
-            if (event->level != a_rule->level) {
-                return a_rule->output(a_rule, a_thread, data);
-            } else {
-                return 0;
-            }
-                break;
-	}
+    switch (a_rule->compare_char) {
+    case '*':
+        return a_rule->output(a_rule, a_thread, data);
+        break;
+    case '.':
+        if (event->level >= a_rule->level) {
+            return a_rule->output(a_rule, a_thread, data);
+        } else {
+            return 0;
+        }
+        break;
+    case '=':
+        if (event->level == a_rule->level) {
+            return a_rule->output(a_rule, a_thread, data);
+        } else {
+            return 0;
+        }
+        break;
+    case '!':
+        if (event->level != a_rule->level) {
+            return a_rule->output(a_rule, a_thread, data);
+        } else {
+            return 0;
+        }
+        break;
+    }
 
-	return 0;
+    return 0;
 }
 
 /*******************************************************************************/
