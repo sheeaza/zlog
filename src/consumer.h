@@ -16,7 +16,8 @@ struct fifo;
 struct log_consumer {
 	pthread_t tid;
 	struct zlog_buf_s *msg_buf;
-	char time_str[MAXLEN_CFG_LINE + 1];
+        struct zlog_buf_s *pre_msg_buf;
+        char time_str[MAXLEN_CFG_LINE + 1];
     bool exit;
 
     struct {

@@ -88,6 +88,7 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
         .time_str.str = logc->time_str,
         .time_str.len = sizeof(logc->time_str),
         .tmp_buf = logc->msg_buf,
+        .pre_tmp_buf = logc->pre_msg_buf,
     };
     int ret = zlog_category_output(meta->category, NULL, &data);
     if (ret) {
@@ -161,10 +162,17 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 		goto free_logc;
 	}
 
+        logc->pre_msg_buf =
+            zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
+        if (!logc->pre_msg_buf) {
+            zc_error("zlog_buf_new fail");
+            goto free_msgbuf;
+        }
+
     ret = pthread_mutex_init(&logc->event.queue_in_lock, NULL);
     if (ret) {
 		zc_error("pthread_mutex_init failed, %d", ret);
-		goto free_msgbuf;
+                goto free_premsgbuf;
     }
 
     logc->event.queue = fifo_create(arg->conf->log_consumer.consumer_msg_queue_len);
@@ -217,6 +225,8 @@ free_lock:
 		zc_error("pthread_mutex_destroy failed, ignore");
 	}
 
+free_premsgbuf:
+    zlog_buf_del(logc->pre_msg_buf);
 free_msgbuf:
     zlog_buf_del(logc->msg_buf);
 free_logc:
@@ -254,7 +264,8 @@ void log_consumer_destroy(struct log_consumer *logc)
 		zc_error("pthread_mutex_destroy failed, ignore");
 	}
 
-    zlog_buf_del(logc->msg_buf);
+        zlog_buf_del(logc->pre_msg_buf);
+        zlog_buf_del(logc->msg_buf);
 	free(logc);
 }
 

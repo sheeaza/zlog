@@ -40,11 +40,10 @@ int main(int argc, char **argv)
         {0, 0, 0, 0},
     };
 
-    int option_index = 0;
     int cnt = 50;
     bool record = false;
 
-    for (int opt = -1;
+    for (int opt = -1, option_index = 0;
          ((opt = getopt_long(argc, argv, "rn:f:", long_options, &option_index)) != -1);) {
         switch (opt) {
         case 'r':

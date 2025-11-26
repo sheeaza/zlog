@@ -932,8 +932,8 @@ static void _log(zlog_category_t * category,
 	zlog_fetch_thread(a_thread, exit);
 
     if (zlog_env_conf->log_consumer.en) {
-        log_producer_send(a_thread, zlog_default_category, file, filelen, func, funclen, line,
-                          level, format, args);
+        log_producer_send(a_thread, category, file, filelen, func, funclen, line, level, format,
+                          args);
     } else {
         zlog_event_set_fmt(a_thread->event, category->name, category->name_len,
             file, filelen, func, funclen, line, level,

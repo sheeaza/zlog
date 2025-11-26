@@ -425,14 +425,18 @@ static int zlog_rule_output_pipe(zlog_rule_t * a_rule, zlog_thread_t * a_thread,
 		return -1;
 	}
 
-	if (write(a_rule->pipe_fd,
-			zlog_buf_str(a_thread->msg_buf),
-			zlog_buf_len(a_thread->msg_buf)) < 0) {
-		zc_error("write fail, errno[%d]", errno);
-		return -1;
-	}
+        zlog_buf_t *msg_buf;
+        if (data) {
+            msg_buf = data->tmp_buf;
+        } else {
+            msg_buf = a_thread->msg_buf;
+        }
+        if (write(a_rule->pipe_fd, zlog_buf_str(msg_buf), zlog_buf_len(msg_buf)) < 0) {
+            zc_error("write fail, errno[%d]", errno);
+            return -1;
+        }
 
-	return 0;
+        return 0;
 }
 
 static int zlog_rule_output_syslog(zlog_rule_t * a_rule, zlog_thread_t * a_thread, struct zlog_output_data *data)
@@ -450,10 +454,15 @@ static int zlog_rule_output_syslog(zlog_rule_t * a_rule, zlog_thread_t * a_threa
 	msg_len = a_thread->msg_buf->end - a_thread->msg_buf->start;
 	 */
 
-	a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
-	zlog_buf_seal(a_thread->msg_buf);
-	syslog(a_rule->syslog_facility | a_level->syslog_level,
-		"%s",  zlog_buf_str(a_thread->msg_buf));
+        zlog_buf_t *msg_buf;
+        if (data) {
+            msg_buf = data->tmp_buf;
+        } else {
+            msg_buf = a_thread->msg_buf;
+        }
+        a_level = zlog_level_list_get(zlog_env_conf->levels, a_thread->event->level);
+        zlog_buf_seal(msg_buf);
+        syslog(a_rule->syslog_facility | a_level->syslog_level, "%s", zlog_buf_str(msg_buf));
 #endif
 	return 0;
 }
@@ -538,13 +547,18 @@ static int zlog_rule_output_stdout(zlog_rule_t * a_rule,
 		return -1;
 	}
 
-	if (write(STDOUT_FILENO,
-		zlog_buf_str(a_thread->msg_buf), zlog_buf_len(a_thread->msg_buf)) < 0) {
-		zc_error("write fail, errno[%d]", errno);
-		return -1;
-	}
+        zlog_buf_t *msg_buf;
+        if (data) {
+            msg_buf = data->tmp_buf;
+        } else {
+            msg_buf = a_thread->msg_buf;
+        }
+        if (write(STDOUT_FILENO, zlog_buf_str(msg_buf), zlog_buf_len(msg_buf)) < 0) {
+            zc_error("write fail, errno[%d]", errno);
+            return -1;
+        }
 
-	return 0;
+        return 0;
 }
 
 static int zlog_rule_output_stderr(zlog_rule_t * a_rule,
@@ -556,13 +570,18 @@ static int zlog_rule_output_stderr(zlog_rule_t * a_rule,
 		return -1;
 	}
 
-	if (write(STDERR_FILENO,
-		zlog_buf_str(a_thread->msg_buf), zlog_buf_len(a_thread->msg_buf)) < 0) {
-		zc_error("write fail, errno[%d]", errno);
-		return -1;
-	}
+        zlog_buf_t *msg_buf;
+        if (data) {
+            msg_buf = data->tmp_buf;
+        } else {
+            msg_buf = a_thread->msg_buf;
+        }
+        if (write(STDERR_FILENO, zlog_buf_str(msg_buf), zlog_buf_len(msg_buf)) < 0) {
+            zc_error("write fail, errno[%d]", errno);
+            return -1;
+        }
 
-	return 0;
+        return 0;
 }
 /*******************************************************************************/
 static int syslog_facility_atoi(char *facility)
@@ -1080,31 +1099,37 @@ void zlog_rule_del(zlog_rule_t * a_rule)
 /*******************************************************************************/
 int zlog_rule_output(zlog_rule_t * a_rule, zlog_thread_t * a_thread, struct zlog_output_data *data)
 {
-	switch (a_rule->compare_char) {
+    zlog_event_t *event = NULL;
+    if (data) {
+        event = data->thread->event;
+    } else {
+        event = a_thread->event;
+    }
+        switch (a_rule->compare_char) {
 	case '*' :
 		return a_rule->output(a_rule, a_thread, data);
 		break;
 	case '.' :
-		if (a_thread->event->level >= a_rule->level) {
-			return a_rule->output(a_rule, a_thread, data);
-		} else {
-			return 0;
-		}
-		break;
+            if (event->level >= a_rule->level) {
+                return a_rule->output(a_rule, a_thread, data);
+            } else {
+                return 0;
+            }
+                break;
 	case '=' :
-		if (a_thread->event->level == a_rule->level) {
-			return a_rule->output(a_rule, a_thread, data);
-		} else {
-			return 0;
-		}
-		break;
+            if (event->level == a_rule->level) {
+                return a_rule->output(a_rule, a_thread, data);
+            } else {
+                return 0;
+            }
+                break;
 	case '!' :
-		if (a_thread->event->level != a_rule->level) {
-			return a_rule->output(a_rule, a_thread, data);
-		} else {
-			return 0;
-		}
-		break;
+            if (event->level != a_rule->level) {
+                return a_rule->output(a_rule, a_thread, data);
+            } else {
+                return 0;
+            }
+                break;
 	}
 
 	return 0;

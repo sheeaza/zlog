@@ -75,6 +75,7 @@ struct zlog_output_data {
     struct msg_meta *meta;
     struct msg_usr_str *usr_str;
     struct zlog_buf_s *tmp_buf;
+    struct zlog_buf_s *pre_tmp_buf;
     struct {
         char *str;
         size_t len;

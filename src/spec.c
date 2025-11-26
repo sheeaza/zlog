@@ -476,19 +476,28 @@ static int zlog_spec_gen_msg_reformat(zlog_spec_t * a_spec, zlog_thread_t * a_th
 {
 	int rc;
 
-	zlog_buf_restart(a_thread->pre_msg_buf);
+        zlog_buf_t *msg_buf;
+        zlog_buf_t *pre_msg_buf;
+        if (data) {
+            msg_buf = data->tmp_buf;
+            pre_msg_buf = data->pre_tmp_buf;
+        } else {
+            msg_buf = a_thread->msg_buf;
+            pre_msg_buf = a_thread->pre_msg_buf;
+        }
+        zlog_buf_restart(pre_msg_buf);
 
-	rc = a_spec->write_buf(a_spec, a_thread, a_thread->pre_msg_buf, data);
-	if (rc < 0) {
+        rc = a_spec->write_buf(a_spec, a_thread, pre_msg_buf, data);
+        if (rc < 0) {
 		zc_error("a_spec->gen_buf fail");
 		return -1;
 	} else if (rc > 0) {
 		/* buf is full, try printf */
 	}
 
-	return zlog_buf_adjust_append(a_thread->msg_buf,
-		zlog_buf_str(a_thread->pre_msg_buf), zlog_buf_len(a_thread->pre_msg_buf),
-		a_spec->left_adjust, a_spec->left_fill_zeros, a_spec->min_width, a_spec->max_width);
+        return zlog_buf_adjust_append(msg_buf, zlog_buf_str(pre_msg_buf), zlog_buf_len(pre_msg_buf),
+                                      a_spec->left_adjust, a_spec->left_fill_zeros,
+                                      a_spec->min_width, a_spec->max_width);
 }
 
 /*******************************************************************************/
