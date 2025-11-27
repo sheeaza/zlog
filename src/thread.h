@@ -44,6 +44,7 @@ typedef struct zlog_thread_s {
     struct {
         /* change per conf start */
         bool en;
+        int refcnt;
         /* change per conf end */
         pthread_mutex_t *lock_ref;
         unsigned int full_cnt;

@@ -94,6 +94,9 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
     if (ret) {
         zc_error("failed to output %d", ret);
     }
+    if (atomic_fetch_sub(&meta->thread->producer.refcnt, 1) == 1) {
+        zlog_thread_del(meta->thread);
+    }
 }
 
 static void *logc_func(void *arg)

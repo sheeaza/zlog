@@ -70,7 +70,6 @@ pthread_cond
 TODO
 ==================
 todo:
-    thread data refcnt
     conf reload
     remove thread msg buf for consumer enabled.
 

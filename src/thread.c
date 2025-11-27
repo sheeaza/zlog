@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdatomic.h>
 
 #include "zc_defs.h"
 #include "event.h"
@@ -53,7 +54,9 @@ void zlog_thread_del(zlog_thread_t * a_thread)
 {
 	zc_assert(a_thread,);
 	if (a_thread->producer.en) {
-		/* todo: use refcnt to manage lifecyle, last one free */
+        if (atomic_fetch_sub(&a_thread->producer.refcnt, 1) > 1) {
+            return;
+        }
 		/* writer thread enabled */
 		a_thread->producer.lock_ref = NULL;
         printf("fullcnt %d\n", a_thread->producer.full_cnt);
@@ -136,6 +139,7 @@ zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf
 	if (conf->log_consumer.en) {
         a_thread->producer.en = true;
 		a_thread->producer.lock_ref = &pdata->share_mutex;
+        atomic_init(&a_thread->producer.refcnt, 1);
 	}
 
 	//zlog_thread_profile(a_thread, ZC_DEBUG);

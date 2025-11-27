@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <sys/param.h>
+#include <stdatomic.h>
 
 #include "conf.h"
 #include "category_table.h"
@@ -883,19 +884,20 @@ static void log_producer_send(zlog_thread_t *a_thread, zlog_category_t * categor
     meta->funclen = funclen;
     meta->line = line;
     meta->level = level;
-    meta->thread = a_thread; /* todo, refcnt */
+    meta->thread = a_thread;
     ret = clock_gettime(CLOCK_REALTIME, &meta->ts); /* todo: CLOCK_MONOTONIC  ? */
     if (ret) {
         zc_error("failed to get ts ret %d", ret);
         goto discard;
     }
 
+    atomic_fetch_add(&a_thread->producer.refcnt, 1);
     log_consumer_queue_commit_signal(process_data.logc, head, false);
 
-    /* todo, thread get/put */
     return;
 
 discard:
+    atomic_fetch_add(&a_thread->producer.refcnt, 1);
     log_consumer_queue_commit_signal(process_data.logc, head, true);
 }
 
