@@ -11,5 +11,6 @@ IndentCaseLabels: false
 ColumnLimit: 100
 
 ForEachMacros: [
-  "zc_arraylist_foreach"
+  "zc_arraylist_foreach",
+  "zc_hashtable_foreach"
 ]
