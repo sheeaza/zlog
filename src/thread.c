@@ -57,8 +57,6 @@ void zlog_thread_del(zlog_thread_t * a_thread)
         if (atomic_fetch_sub(&a_thread->producer.refcnt, 1) > 1) {
             return;
         }
-		/* writer thread enabled */
-		a_thread->producer.lock_ref = NULL;
         printf("fullcnt %d\n", a_thread->producer.full_cnt);
 	}
 	if (a_thread->mdc)
@@ -138,7 +136,6 @@ zlog_thread_t *zlog_thread_new(int init_version, size_t buf_size_min, size_t buf
 
 	if (conf->log_consumer.en) {
         a_thread->producer.en = true;
-		a_thread->producer.lock_ref = &pdata->share_mutex;
         atomic_init(&a_thread->producer.refcnt, 1);
 	}
 
