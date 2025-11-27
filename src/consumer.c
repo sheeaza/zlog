@@ -115,6 +115,7 @@ static void *logc_func(void *arg)
             (prev_sig_send_valid && prev_sig_send == logc->event.sig_send)) {
             pthread_cond_wait(&logc->event.cond, &logc->event.siglock);
         }
+        /* todo: optimize prev_sig_send readability */
         prev_sig_send = logc->event.sig_send;
         pthread_mutex_unlock(&logc->event.siglock);
         /* has data */
