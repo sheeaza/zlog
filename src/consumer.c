@@ -16,7 +16,7 @@
 
 static void enque_event_exit(struct log_consumer *logc)
 {
-    assert(!pthread_mutex_lock(&logc->event.queue_in_lock));
+    assert(!pthread_spin_lock(&logc->event.queue_in_lock));
     logc->exit = true; /* ensure this is the last */
     for (;;) {
         struct msg_head *head = fifo_reserve(logc->event.queue, msg_cmd_size());
@@ -31,7 +31,7 @@ static void enque_event_exit(struct log_consumer *logc)
         fifo_commit(logc->event.queue, head);
         break;
     }
-    assert(!pthread_mutex_unlock(&logc->event.queue_in_lock));
+    assert(!pthread_spin_unlock(&logc->event.queue_in_lock));
 }
 
 static void enque_signal(struct log_consumer *logc)
@@ -170,7 +170,7 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
             goto free_msgbuf;
         }
 
-    ret = pthread_mutex_init(&logc->event.queue_in_lock, NULL);
+    ret = pthread_spin_init(&logc->event.queue_in_lock, 0);
     if (ret) {
 		zc_error("pthread_mutex_init failed, %d", ret);
                 goto free_premsgbuf;
@@ -221,7 +221,7 @@ free_equeue:
     fifo_destroy(logc->event.queue);
 
 free_lock:
-    ret = pthread_mutex_destroy(&logc->event.queue_in_lock);
+    ret = pthread_spin_destroy(&logc->event.queue_in_lock);
 	if (ret) {
 		zc_error("pthread_mutex_destroy failed, ignore");
 	}
@@ -260,7 +260,7 @@ void log_consumer_destroy(struct log_consumer *logc)
 	if (ret) {
 		zc_error("pthread_cond_destroy failed, ignore");
 	}
-    ret = pthread_mutex_destroy(&logc->event.queue_in_lock);
+    ret = pthread_spin_destroy(&logc->event.queue_in_lock);
 	if (ret) {
 		zc_error("pthread_mutex_destroy failed, ignore");
 	}
@@ -274,7 +274,7 @@ struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned 
 {
     struct msg_head *head = NULL;
 
-    pthread_mutex_lock(&logc->event.queue_in_lock);
+    pthread_spin_lock(&logc->event.queue_in_lock);
     if (logc->exit) {
         zc_error("log consumer exited, return");
         goto exit;
@@ -283,7 +283,7 @@ struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned 
     head = fifo_reserve(logc->event.queue, size);
 
 exit:
-    pthread_mutex_unlock(&logc->event.queue_in_lock);
+    pthread_spin_unlock(&logc->event.queue_in_lock);
 
     return head;
 }

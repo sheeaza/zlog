@@ -21,7 +21,7 @@ struct log_consumer {
         bool exit;
 
         struct {
-            pthread_mutex_t queue_in_lock;
+            pthread_spinlock_t queue_in_lock;
             struct fifo *queue;
 
             pthread_mutex_t siglock;
