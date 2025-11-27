@@ -378,91 +378,28 @@ XFUNC int zlog_reload(const char *config)
 			goto quit;
 		}
 	}
+    bool is_file = true;
+    struct stat buffer;
+    is_file = stat(config, &buffer) == 0;
 
-	/* reset counter, whether automaticlly or mannually */
-	zlog_env_reload_conf_count = 0;
+    /* reset counter, whether automaticlly or mannually */
+    zlog_env_reload_conf_count = 0;
 
-	new_conf = zlog_conf_new(config);
-	if (!new_conf) {
-		zc_error("zlog_conf_new fail");
-		goto err;
-	}
-
-	zc_arraylist_foreach(new_conf->rules, i, a_rule) {
-		zlog_rule_set_record(a_rule, zlog_env_records);
-	}
-
-	if (zlog_category_table_update_rules(zlog_env_categories, new_conf->rules)) {
-		c_up = 0;
-		zc_error("zlog_category_table_update fail");
-		goto err;
-	} else {
-		c_up = 1;
-	}
-
-	zlog_env_init_version++;
-
-	if (c_up) zlog_category_table_commit_rules(zlog_env_categories);
-	zlog_conf_del(zlog_env_conf);
-	zlog_env_conf = new_conf;
-	zc_debug("------zlog_reload success, total init verison[%d] ------", zlog_env_init_version);
-	rc = pthread_rwlock_unlock(&zlog_env_lock);
-	if (rc) {
-		zc_error("pthread_rwlock_unlock fail, rc=[%d]", rc);
-		return -1;
-	}
-	return 0;
-err:
-	/* fail, roll back everything */
-	zc_warn("zlog_reload fail, use old conf file, still working");
-	if (new_conf) zlog_conf_del(new_conf);
-	if (c_up) zlog_category_table_rollback_rules(zlog_env_categories);
-	zc_error("------zlog_reload fail, total init version[%d] ------", zlog_env_init_version);
-	rc = pthread_rwlock_unlock(&zlog_env_lock);
-	if (rc) {
-		zc_error("pthread_rwlock_unlock fail, rc=[%d]", rc);
-		return -1;
-	}
-	return -1;
-quit:
-	zc_debug("------zlog_reload do nothing------");
-	rc = pthread_rwlock_unlock(&zlog_env_lock);
-	if (rc) {
-		zc_error("pthread_rwlock_unlock fail, rc=[%d]", rc);
-		return -1;
-	}
-	return 0;
-}
-/*******************************************************************************/
-XFUNC int zlog_reload_from_string(const char *conf_string)
-{
-    int rc = 0;
-    int i = 0;
-    zlog_conf_t *new_conf = NULL;
-    zlog_rule_t *a_rule;
-    int c_up = 0;
-
-    zc_debug("------zlog_reload start------");
-    rc = pthread_rwlock_wrlock(&zlog_env_lock);
-    if (rc) {
-        zc_error("pthread_rwlock_wrlock fail, rc[%d]", rc);
-        return -1;
+    if (is_file) {
+        new_conf = zlog_conf_new(config);
+        if (!new_conf) {
+            zc_error("zlog_conf_new fail");
+            goto err;
+        }
+    } else {
+        new_conf = zlog_conf_new_from_string(config);
+        if (!new_conf) {
+            zc_error("zlog_conf_new fail");
+            goto err;
+        }
     }
 
-    if (!zlog_env_is_init) {
-        zc_error("never call zlog_init() or dzlog_init() before");
-        goto quit;
-    }
-
-    if (conf_string == NULL) goto quit;
-
-    new_conf = zlog_conf_new_from_string(conf_string);
-    if (!new_conf) {
-        zc_error("zlog_conf_new fail");
-        goto err;
-    }
-
-    zc_arraylist_foreach(new_conf->rules, i, a_rule) {
+    zc_arraylist_foreach (new_conf->rules, i, a_rule) {
         zlog_rule_set_record(a_rule, zlog_env_records);
     }
 
@@ -476,7 +413,8 @@ XFUNC int zlog_reload_from_string(const char *conf_string)
 
     zlog_env_init_version++;
 
-    if (c_up) zlog_category_table_commit_rules(zlog_env_categories);
+    if (c_up)
+        zlog_category_table_commit_rules(zlog_env_categories);
     zlog_conf_del(zlog_env_conf);
     zlog_env_conf = new_conf;
     zc_debug("------zlog_reload success, total init verison[%d] ------", zlog_env_init_version);
@@ -489,8 +427,10 @@ XFUNC int zlog_reload_from_string(const char *conf_string)
 err:
     /* fail, roll back everything */
     zc_warn("zlog_reload fail, use old conf file, still working");
-    if (new_conf) zlog_conf_del(new_conf);
-    if (c_up) zlog_category_table_rollback_rules(zlog_env_categories);
+    if (new_conf)
+        zlog_conf_del(new_conf);
+    if (c_up)
+        zlog_category_table_rollback_rules(zlog_env_categories);
     zc_error("------zlog_reload fail, total init version[%d] ------", zlog_env_init_version);
     rc = pthread_rwlock_unlock(&zlog_env_lock);
     if (rc) {
@@ -507,6 +447,12 @@ quit:
     }
     return 0;
 }
+/*******************************************************************************/
+XFUNC int zlog_reload_from_string(const char *conf_string)
+{
+    return zlog_reload(conf_string);
+}
+
 /*******************************************************************************/
 XFUNC void zlog_fini(void)
 {
