@@ -25,9 +25,12 @@
 #include "zlog.h"
 
 #define DEFAULT_CNT 50
+#define MAX_FILES 10
 enum myopt {
     MY_OPT_THREADN = 1000,
     MY_OPT_RECORDMS,
+    MY_OPT_RELOAD,
+    MY_OPT_RELOADMS,
 };
 
 struct conf {
@@ -37,7 +40,10 @@ struct conf {
     int record_ms;
     int threadn;
     int perlog_ms;
-    const char *reload_file;
+    const char *reload_files[MAX_FILES];
+    int reload_file_num;
+    int reload_cnt;
+    int reload_ms;
 };
 
 static struct conf *g_conf;
@@ -70,6 +76,7 @@ static void *thread_func(void *ptr)
             }
         }
     }
+    /* printf("thread %lx exit\n", pthread_self()); */
     return NULL;
 }
 
@@ -81,10 +88,16 @@ static void conf_profile(const struct conf *conf)
            "perlog_ms : %d\n"
            "record: %d\n"
            "recordms: %d\n"
-           "reload_file: %s\n"
-           "==== start ====\n",
+           "reload_file_cnt %d\n",
            conf->filename, conf->cnt, conf->threadn, conf->perlog_ms, conf->record, conf->record_ms,
-           conf->reload_file ? conf->reload_file : "null");
+           conf->reload_file_num);
+    for (int i = 0; i < conf->reload_file_num; i++) {
+        printf("reload_file[%d]: %s\n", i, conf->reload_files[i]);
+    }
+    printf("reload_cnt: %d\n"
+           "reload_ms: %d\n"
+           "==== start ====\n",
+           conf->reload_cnt, conf->reload_ms);
 }
 
 static int conf_check(const struct conf *conf)
@@ -92,6 +105,13 @@ static int conf_check(const struct conf *conf)
     if (conf->threadn == 0) {
         if (conf->cnt == 0) {
             fprintf(stderr, "invalid threadn %d, should != cnt %d", conf->threadn, conf->cnt);
+            return -1;
+        }
+    }
+
+    for (int i = 0; i < conf->reload_file_num; i++) {
+        if (access(conf->reload_files[i], F_OK)) {
+            fprintf(stderr, "err, file not exist: %s\n", conf->reload_files[i]);
             return -1;
         }
     }
@@ -129,20 +149,21 @@ static int test(struct conf *conf)
         }
     }
 
-    if (conf->reload_file) {
-        assert(!zlog_reload(conf->reload_file));
+    for (int i = 0; i < conf->reload_cnt; i++) {
+        assert(!zlog_reload(conf->reload_files[i % conf->reload_file_num]));
+        usleep(conf->reload_ms * 1000);
     }
 
     if (conf->threadn) {
         for (int i = 0; i < conf->threadn; i++) {
             assert(!pthread_join(tids[i], NULL));
-            printf("thread %ld exit\n", tids[i]);
         }
         free(tids);
     }
 
     zlog_fini();
 
+    printf("====== test success =====\n");
     return 0;
 }
 
@@ -154,7 +175,9 @@ int main(int argc, char **argv)
         {"count", required_argument, 0, 'n'},
         {"threadN", required_argument, 0, MY_OPT_THREADN},
         {"perlog_ms", required_argument, 0, 'm'},
-        {"reload", optional_argument, 0, 'l'},
+        {"reload", required_argument, 0, 'l'},
+        {"reloadcnt", required_argument, 0, MY_OPT_RELOAD},
+        {"reloadms", required_argument, 0, MY_OPT_RELOADMS},
         {"file", required_argument, 0, 'f'},
         {0, 0, 0, 0},
     };
@@ -163,13 +186,19 @@ int main(int argc, char **argv)
         .cnt = DEFAULT_CNT,
     };
     for (int opt = -1, option_index = 0;
-         ((opt = getopt_long(argc, argv, "l::rn:f:m:", long_options, &option_index)) != -1);) {
+         ((opt = getopt_long(argc, argv, "l:rn:f:m:", long_options, &option_index)) != -1);) {
         switch (opt) {
         case MY_OPT_THREADN:
             conf.threadn = atoi(optarg);
             break;
         case MY_OPT_RECORDMS:
             conf.record_ms = atoi(optarg);
+            break;
+        case MY_OPT_RELOAD:
+            conf.reload_cnt = atoi(optarg);
+            break;
+        case MY_OPT_RELOADMS:
+            conf.reload_ms = atoi(optarg);
             break;
         case 'r':
             conf.record = true;
@@ -181,10 +210,12 @@ int main(int argc, char **argv)
             conf.perlog_ms = atoi(optarg);
             break;
         case 'l':
-            if (optarg) {
-                conf.reload_file = optarg;
+            if (conf.reload_file_num < MAX_FILES) {
+                conf.reload_files[conf.reload_file_num] = optarg;
+                conf.reload_file_num++;
             } else {
-                conf.reload_file = (char *)-1;
+                fprintf(stderr, "warning: exceed max reload file cnt: %d, ignore: %s\n",
+                        conf.reload_file_num, optarg);
             }
             break;
         case 'f':
@@ -206,9 +237,6 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (conf.reload_file == (char *)-1) {
-        conf.reload_file = conf.filename;
-    }
     conf_profile(&conf);
     if (conf_check(&conf)) {
         exit(EXIT_FAILURE);

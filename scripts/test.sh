@@ -33,6 +33,16 @@ test_multi_thread_record()
     eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10 -r"
 }
 
+test_multi_thread_reload()
+{
+    rm -f zlog.txt*
+    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 1000 -m 10 --threadN=10 --reloadcnt=10 --reloadms=400 \
+        -l test_consumer_static_file_single.conf \
+        -l test_consumer_static_file_single.conf \
+        -l test_static_file_single.conf \
+        -l test_dynamic_file.conf"
+}
+
 test_multi_thread_recordms()
 {
     rm -f zlog.txt*
