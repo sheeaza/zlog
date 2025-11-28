@@ -74,11 +74,12 @@ todo:
     remove thread msg buf for consumer enabled.
 
 test:
-    add per zlog_spec_write_*
-    multi thread test
+    add per zlog_spec_write_* -> done
+    multi thread test -> done
     add mdc test
+    reload cover all case test
 
-consumer fifo size config
+consumer fifo size config -> done
 
 perf:
     perf record -F 999 -g -- ./test_consumer_static_file_single
