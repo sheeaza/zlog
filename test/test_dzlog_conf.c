@@ -27,20 +27,26 @@
 #define DEFAULT_CNT 50
 enum myopt {
     MY_OPT_THREADN = 1000,
+    MY_OPT_RECORDMS,
 };
 
 struct conf {
     char *filename;
     int cnt;
     bool record;
+    int record_ms;
     int threadn;
     int perlog_ms;
     const char *reload_file;
 };
 
+static struct conf *g_conf;
 static int output(zlog_msg_t *msg)
 {
     printf("[mystd]:[%s][%s][%ld]\n", msg->path, msg->buf, (long)msg->len);
+    if (g_conf->record_ms) {
+        usleep(g_conf->record_ms * 1000);
+    }
     return 0;
 }
 
@@ -74,9 +80,10 @@ static void conf_profile(const struct conf *conf)
            "threadN : %d\n"
            "perlog_ms : %d\n"
            "record: %d\n"
+           "recordms: %d\n"
            "reload_file: %s\n"
-           "========\n",
-           conf->filename, conf->cnt, conf->threadn, conf->perlog_ms, conf->record,
+           "==== start ====\n",
+           conf->filename, conf->cnt, conf->threadn, conf->perlog_ms, conf->record, conf->record_ms,
            conf->reload_file ? conf->reload_file : "null");
 }
 
@@ -129,6 +136,7 @@ static int test(struct conf *conf)
     if (conf->threadn) {
         for (int i = 0; i < conf->threadn; i++) {
             assert(!pthread_join(tids[i], NULL));
+            printf("thread %ld exit\n", tids[i]);
         }
         free(tids);
     }
@@ -142,6 +150,7 @@ int main(int argc, char **argv)
 {
     static const struct option long_options[] = {
         {"record", no_argument, 0, 'r'},
+        {"recordms", required_argument, 0, MY_OPT_RECORDMS},
         {"count", required_argument, 0, 'n'},
         {"threadN", required_argument, 0, MY_OPT_THREADN},
         {"perlog_ms", required_argument, 0, 'm'},
@@ -158,6 +167,9 @@ int main(int argc, char **argv)
         switch (opt) {
         case MY_OPT_THREADN:
             conf.threadn = atoi(optarg);
+            break;
+        case MY_OPT_RECORDMS:
+            conf.record_ms = atoi(optarg);
             break;
         case 'r':
             conf.record = true;
@@ -202,5 +214,6 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    g_conf = &conf;
     return test(&conf);
 }

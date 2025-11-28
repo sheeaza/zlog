@@ -33,6 +33,12 @@ test_multi_thread_record()
     eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10 -r"
 }
 
+test_multi_thread_recordms()
+{
+    rm -f zlog.txt*
+    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 2 --threadN=10 -r --recordms=100"
+}
+
 test_simple()
 {
     rm -f zlog.txt*
@@ -40,13 +46,17 @@ test_simple()
 }
 
 asan_pre=""
-while getopts "t:a" opt; do
+while getopts "t:a::" opt; do
   case $opt in
     t)
       testname="$OPTARG"
       ;;
     a)
-      asan_pre="LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/11/libasan.so ASAN_OPTIONS=detect_leaks=1"
+      if [[ -z "${OPTARG}" ]]; then
+          asan_pre="LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/11/libasan.so ASAN_OPTIONS=detect_leaks=1"
+      else
+          asan_pre="LD_PRELOAD=$OPTARG ASAN_OPTIONS=detect_leaks=1"
+      fi
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -57,4 +67,4 @@ done
 
 cd build/bin
 $testname
-cd -
+cd - > /dev/null
