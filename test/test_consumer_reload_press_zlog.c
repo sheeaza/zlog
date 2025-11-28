@@ -26,7 +26,7 @@
 static zlog_category_t *zc;
 static long loop_count;
 
-void * work(void *ptr)
+static void *work(void *ptr)
 {
 	long j = loop_count;
 	while(j-- > 0) {
@@ -35,8 +35,7 @@ void * work(void *ptr)
     return 0;
 }
 
-
-int test(long process_count, long thread_count, const char *conf)
+static int test(long process_count, long thread_count, const char *conf)
 {
     pthread_t tid[thread_count];
     for (int j = 0; j < thread_count; j++) {
