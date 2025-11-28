@@ -416,8 +416,6 @@ XFUNC int zlog_reload(const char *config)
         c_up = 1;
     }
 
-    zlog_env_init_version++;
-
     if (c_up)
         zlog_category_table_commit_rules(zlog_env_categories);
 
@@ -454,6 +452,7 @@ XFUNC int zlog_reload(const char *config)
     zlog_conf_del(zlog_env_conf);
     zlog_env_conf = new_conf;
     zc_debug("------zlog_reload success, total init verison[%d] ------", zlog_env_init_version);
+    zlog_env_init_version++;
     rc = pthread_rwlock_unlock(&zlog_env_lock);
     if (rc) {
         zc_error("pthread_rwlock_unlock fail, rc=[%d]", rc);
