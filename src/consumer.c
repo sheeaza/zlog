@@ -1,8 +1,8 @@
-#include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
 #include <assert.h>
+#include <pthread.h>
 #include <stdatomic.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "zc_profile.h"
 #include "thread.h"
@@ -150,26 +150,20 @@ static void *logc_func(void *arg)
 
 struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 {
-	pthread_attr_t attr;
-	int ret;
+    int ret;
 
-	ret = pthread_attr_init(&attr);
-	if (ret) {
-		zc_error("pthread_attr_init failed");
-		return NULL;
-	}
+    struct log_consumer *logc = calloc(1, sizeof(*logc));
+    if (!logc) {
+        zc_error("pthread_attr_init failed");
+        return NULL;
+    }
 
-	struct log_consumer *logc = calloc(1, sizeof(*logc));
-	if (!logc) {
-		zc_error("pthread_attr_init failed");
-		goto free_attr;
-	}
-
-	logc->msg_buf = zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
-	if (!logc->msg_buf) {
-		zc_error("zlog_buf_new fail");
-		goto free_logc;
-	}
+    logc->msg_buf =
+        zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
+    if (!logc->msg_buf) {
+        zc_error("zlog_buf_new fail");
+        goto free_logc;
+    }
 
     logc->pre_msg_buf =
         zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
@@ -216,14 +210,23 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 
     /* thread create must put at end */
 	pthread_t tid;
-	ret = pthread_create(&tid, &attr, logc_func, logc);
-	if (ret) {
-		zc_error("pthread_create failed");
-		goto free_fcond;
-	}
+    pthread_attr_t attr;
+    ret = pthread_attr_init(&attr);
+    if (ret) {
+        zc_error("pthread_attr_init failed");
+        goto free_fcond;
+    }
+    ret = pthread_create(&tid, &attr, logc_func, logc);
+    if (pthread_attr_destroy(&attr)) {
+        zc_error("pthread_attr_destroy failed, ignore");
+    }
+    if (ret) {
+        zc_error("pthread_create failed");
+        goto free_fcond;
+    }
 
-	logc->tid = tid;
-	goto free_attr;
+    logc->tid = tid;
+    return logc;
 
 free_fcond:
     ret = pthread_cond_destroy(&logc->flush.cond);
@@ -263,15 +266,9 @@ free_premsgbuf:
 free_msgbuf:
     zlog_buf_del(logc->msg_buf);
 free_logc:
-	free(logc);
-	logc = NULL;
-free_attr:
-	ret = pthread_attr_destroy(&attr);
-	if (ret) {
-		zc_error("pthread_attr_destroy failed, ignore");
-	}
+    free(logc);
 
-	return logc;
+    return NULL;
 }
 
 void log_consumer_destroy(struct log_consumer *logc)
