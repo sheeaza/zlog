@@ -16,7 +16,7 @@
 
 static void enque_event_exit(struct log_consumer *logc)
 {
-    assert(!pthread_spin_lock(&logc->event.queue_in_lock));
+    assert(!pthread_mutex_lock(&logc->event.queue_in_lock));
     logc->exit = true; /* ensure this is the last */
     for (;;) {
         struct msg_head *head = fifo_reserve(logc->event.queue, msg_cmd_size());
@@ -31,7 +31,7 @@ static void enque_event_exit(struct log_consumer *logc)
         fifo_commit(logc->event.queue, head);
         break;
     }
-    assert(!pthread_spin_unlock(&logc->event.queue_in_lock));
+    assert(!pthread_mutex_unlock(&logc->event.queue_in_lock));
 }
 
 static void enque_signal(struct log_consumer *logc)
@@ -171,17 +171,17 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 		goto free_logc;
 	}
 
-        logc->pre_msg_buf =
-            zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
-        if (!logc->pre_msg_buf) {
-            zc_error("zlog_buf_new fail");
-            goto free_msgbuf;
-        }
+    logc->pre_msg_buf =
+        zlog_buf_new(arg->conf->buf_size_min, arg->conf->buf_size_max, "..." FILE_NEWLINE);
+    if (!logc->pre_msg_buf) {
+        zc_error("zlog_buf_new fail");
+        goto free_msgbuf;
+    }
 
-    ret = pthread_spin_init(&logc->event.queue_in_lock, 0);
+    ret = pthread_mutex_init(&logc->event.queue_in_lock, 0);
     if (ret) {
-		zc_error("pthread_mutex_init failed, %d", ret);
-                goto free_premsgbuf;
+        zc_error("pthread_mutex_init failed, %d", ret);
+        goto free_premsgbuf;
     }
 
     logc->event.queue = fifo_create(arg->conf->log_consumer.consumer_msg_queue_len);
@@ -253,10 +253,10 @@ free_equeue:
     fifo_destroy(logc->event.queue);
 
 free_lock:
-    ret = pthread_spin_destroy(&logc->event.queue_in_lock);
-	if (ret) {
-		zc_error("pthread_mutex_destroy failed, ignore");
-	}
+    ret = pthread_mutex_destroy(&logc->event.queue_in_lock);
+    if (ret) {
+        zc_error("pthread_mutex_destroy failed, ignore");
+    }
 
 free_premsgbuf:
     zlog_buf_del(logc->pre_msg_buf);
@@ -307,10 +307,10 @@ void log_consumer_destroy(struct log_consumer *logc)
 		zc_error("pthread_mutex_destroy failed, ignore");
 	}
     fifo_destroy(logc->event.queue);
-    ret = pthread_spin_destroy(&logc->event.queue_in_lock);
-	if (ret) {
-		zc_error("pthread_mutex_destroy failed, ignore");
-	}
+    ret = pthread_mutex_destroy(&logc->event.queue_in_lock);
+    if (ret) {
+        zc_error("pthread_mutex_destroy failed, ignore");
+    }
 
         zlog_buf_del(logc->pre_msg_buf);
         zlog_buf_del(logc->msg_buf);
@@ -321,7 +321,7 @@ struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned 
 {
     struct msg_head *head = NULL;
 
-    pthread_spin_lock(&logc->event.queue_in_lock);
+    pthread_mutex_lock(&logc->event.queue_in_lock);
     if (logc->exit) {
         zc_error("log consumer exited, return");
         goto exit;
@@ -330,7 +330,7 @@ struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned 
     head = fifo_reserve(logc->event.queue, size);
 
 exit:
-    pthread_spin_unlock(&logc->event.queue_in_lock);
+    pthread_mutex_unlock(&logc->event.queue_in_lock);
 
     return head;
 }
@@ -347,7 +347,7 @@ void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head
 
 void log_consumer_queue_flush(struct log_consumer *logc)
 {
-    assert(!pthread_spin_lock(&logc->event.queue_in_lock));
+    assert(!pthread_mutex_lock(&logc->event.queue_in_lock));
     for (;;) {
         struct msg_head *head = fifo_reserve(logc->event.queue, msg_cmd_size());
         if (!head) {
@@ -362,7 +362,7 @@ void log_consumer_queue_flush(struct log_consumer *logc)
         fifo_commit(logc->event.queue, head);
         break;
     }
-    assert(!pthread_spin_unlock(&logc->event.queue_in_lock));
+    assert(!pthread_mutex_unlock(&logc->event.queue_in_lock));
     enque_signal(logc);
 
     pthread_mutex_lock(&logc->flush.siglock);
