@@ -65,6 +65,11 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
                 if (cmd->cmd == MSG_CMD_EXIT) {
                     *exit = true;
                     return;
+                } else if (cmd->cmd == MSG_CMD_FLUSH) {
+                    assert(!pthread_mutex_lock(&logc->flush.siglock));
+                    logc->flush.done = true;
+                    assert(!pthread_cond_signal(&logc->flush.cond));
+                    assert(!pthread_mutex_unlock(&logc->flush.siglock));
                 }
                 offset += msg_cmd_size();
                 break;
@@ -131,7 +136,6 @@ static void *logc_func(void *arg)
 
         logc->event.sig_recv++;
         if (flag == MSG_HEAD_FLAG_COMMITED) {
-            sleep(1);
             handle_log(logc, head, &exit);
         } else if (flag == MSG_HEAD_FLAG_DISCARDED) {
         } else {
@@ -198,16 +202,40 @@ struct log_consumer *log_consumer_create(struct logc_create_arg *arg)
 		goto free_sig_lock;
     }
 
+    ret = pthread_mutex_init(&logc->flush.siglock, NULL);
+    if (ret) {
+		zc_error("pthread_mutex_init failed, %d", ret);
+		goto free_cond;
+    }
+
+    ret = pthread_cond_init(&logc->flush.cond, NULL);
+    if (ret) {
+		zc_error("pthread_cond_init failed, %d", ret);
+		goto free_fsig_lock;
+    }
+
     /* thread create must put at end */
 	pthread_t tid;
 	ret = pthread_create(&tid, &attr, logc_func, logc);
 	if (ret) {
 		zc_error("pthread_create failed");
-		goto free_cond;
+		goto free_fcond;
 	}
 
 	logc->tid = tid;
 	goto free_attr;
+
+free_fcond:
+    ret = pthread_cond_destroy(&logc->flush.cond);
+	if (ret) {
+		zc_error("pthread_cond_destroy failed, ignore");
+	}
+
+free_fsig_lock:
+    ret = pthread_mutex_destroy(&logc->flush.siglock);
+	if (ret) {
+		zc_error("pthread_mutex_destroy failed, ignore");
+	}
 
 free_cond:
     ret = pthread_cond_destroy(&logc->event.cond);
@@ -256,14 +284,29 @@ void log_consumer_destroy(struct log_consumer *logc)
 		zc_error("pthread_join failed %d, ignore", ret);
 	}
 
-    printf("exit cnt sig send %d, sig re %d\n", logc->event.sig_send, logc->event.sig_recv);
+    zc_debug("exit cnt sig send %d, sig re %d, logc %p\n", logc->event.sig_send, logc->event.sig_recv, (void*)logc);
     /* todo, check if need free all event in queue, exit enough ? */
 
-    fifo_destroy(logc->event.queue);
+    ret = pthread_cond_destroy(&logc->flush.cond);
+	if (ret) {
+		zc_error("pthread_cond_destroy failed, ignore");
+	}
+
+    ret = pthread_mutex_destroy(&logc->flush.siglock);
+	if (ret) {
+		zc_error("pthread_mutex_destroy failed, ignore");
+	}
+
     ret = pthread_cond_destroy(&logc->event.cond);
 	if (ret) {
 		zc_error("pthread_cond_destroy failed, ignore");
 	}
+
+    ret = pthread_mutex_destroy(&logc->event.siglock);
+	if (ret) {
+		zc_error("pthread_mutex_destroy failed, ignore");
+	}
+    fifo_destroy(logc->event.queue);
     ret = pthread_spin_destroy(&logc->event.queue_in_lock);
 	if (ret) {
 		zc_error("pthread_mutex_destroy failed, ignore");
@@ -300,4 +343,31 @@ void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head
         fifo_commit(logc->event.queue, head);
     }
     enque_signal(logc);
+}
+
+void log_consumer_queue_flush(struct log_consumer *logc)
+{
+    assert(!pthread_spin_lock(&logc->event.queue_in_lock));
+    for (;;) {
+        struct msg_head *head = fifo_reserve(logc->event.queue, msg_cmd_size());
+        if (!head) {
+            zc_error("not enough space, retry, queue free %d", fifo_unused(logc->event.queue));
+            /* todo add sleep here */
+            continue;
+        }
+        struct msg_cmd *cmd = (struct msg_cmd *)head->data;
+        cmd->type.val = MSG_TYPE_CMD;
+        cmd->cmd = MSG_CMD_FLUSH;
+        logc->flush.done = false;
+        fifo_commit(logc->event.queue, head);
+        break;
+    }
+    assert(!pthread_spin_unlock(&logc->event.queue_in_lock));
+    enque_signal(logc);
+
+    pthread_mutex_lock(&logc->flush.siglock);
+    while (!logc->flush.done) {
+        pthread_cond_wait(&logc->flush.cond, &logc->flush.siglock);
+    }
+    pthread_mutex_unlock(&logc->flush.siglock);
 }

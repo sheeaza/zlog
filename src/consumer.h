@@ -29,6 +29,12 @@ struct log_consumer {
             unsigned int sig_send;
             unsigned int sig_recv;
         } event;
+
+    struct {
+        pthread_mutex_t siglock;
+        pthread_cond_t cond;
+        bool done;
+    } flush;
 };
 
 enum event_type {
@@ -52,5 +58,7 @@ static inline unsigned int event_pack_size(void)
 struct msg_head;
 struct msg_head *log_consumer_queue_reserve(struct log_consumer *logc, unsigned size);
 void log_consumer_queue_commit_signal(struct log_consumer *logc, struct msg_head *head, bool discard);
+
+void log_consumer_queue_flush(struct log_consumer *logc);
 
 #endif

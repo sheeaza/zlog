@@ -57,7 +57,7 @@ void zlog_thread_del(zlog_thread_t * a_thread)
         if (atomic_fetch_sub(&a_thread->producer.refcnt, 1) > 1) {
             return;
         }
-        printf("fullcnt %d\n", a_thread->producer.full_cnt);
+        zc_debug("fullcnt %d\n", a_thread->producer.full_cnt);
 	}
 	if (a_thread->mdc)
 		zlog_mdc_del(a_thread->mdc);
@@ -205,3 +205,10 @@ err:
 
 
 /*******************************************************************************/
+
+void zlog_thread_rebuild_producer(zlog_thread_t * thread, bool en)
+{
+    thread->producer.en = en;
+    thread->producer.full_cnt = 0;
+    atomic_init(&thread->producer.refcnt, 1);
+}

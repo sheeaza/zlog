@@ -399,6 +399,11 @@ XFUNC int zlog_reload(const char *config)
         }
     }
 
+    if (zlog_env_conf->log_consumer.en) {
+        /* ensure all data handled */
+        log_consumer_queue_flush(process_data.logc);
+    }
+
     zc_arraylist_foreach (new_conf->rules, i, a_rule) {
         zlog_rule_set_record(a_rule, zlog_env_records);
     }
@@ -415,6 +420,37 @@ XFUNC int zlog_reload(const char *config)
 
     if (c_up)
         zlog_category_table_commit_rules(zlog_env_categories);
+
+    if (zlog_env_conf->log_consumer.en) {
+        if (new_conf->log_consumer.en) {
+            struct logc_create_arg arg = {
+                .conf = new_conf,
+            };
+            struct log_consumer *logc = log_consumer_create(&arg);
+            if (!logc) {
+                goto err;
+            }
+            log_consumer_destroy(process_data.logc);
+            zc_debug("reload zlog des %p, new %p\n", (void*)process_data.logc, (void*)logc);
+            process_data.logc = logc;
+        } else {
+            log_consumer_destroy(process_data.logc);
+            process_data.logc = NULL;
+        }
+    } else {
+        if (new_conf->log_consumer.en) {
+            struct logc_create_arg arg = {
+                .conf = new_conf,
+            };
+            process_data.logc = log_consumer_create(&arg);
+            if (!process_data.logc) {
+                new_conf->log_consumer.en = false;
+                goto err;
+            }
+        } else {
+        }
+    }
+
     zlog_conf_del(zlog_env_conf);
     zlog_env_conf = new_conf;
     zc_debug("------zlog_reload success, total init verison[%d] ------", zlog_env_init_version);
@@ -592,6 +628,7 @@ err:
 	}  \
   \
 	if (a_thread->init_version != zlog_env_init_version) {  \
+        zlog_thread_rebuild_producer(a_thread, zlog_env_conf->log_consumer.en);\
 		/* as mdc is still here, so can not easily del and new */ \
 		rd = zlog_thread_rebuild_msg_buf(a_thread, \
 				zlog_env_conf->buf_size_min, \

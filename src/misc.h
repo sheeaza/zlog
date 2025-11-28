@@ -23,6 +23,7 @@ enum _msg_type {
 
 enum _msg_cmd {
     MSG_CMD_EXIT = 1,
+    MSG_CMD_FLUSH,
 };
 
 enum msg_head_flag {

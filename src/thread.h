@@ -62,4 +62,6 @@ zlog_thread_t *zlog_thread_new(int init_version,
 int zlog_thread_rebuild_msg_buf(zlog_thread_t * a_thread, size_t buf_size_min, size_t buf_size_max);
 int zlog_thread_rebuild_event(zlog_thread_t * a_thread, int time_cache_count);
 
+void zlog_thread_rebuild_producer(zlog_thread_t * thread, bool en);
+
 #endif
