@@ -115,7 +115,8 @@ static int test(struct conf *conf)
     if (conf->threadn == 0) {
         thread_func(conf);
     } else {
-        pthread_t *tids = malloc(conf->threadn * sizeof(*tids));
+        tids = malloc(conf->threadn * sizeof(*tids));
+        assert(tids);
         for (int i = 0; i < conf->threadn; i++) {
             assert(!pthread_create(&(tids[i]), NULL, thread_func, conf));
         }
@@ -129,6 +130,7 @@ static int test(struct conf *conf)
         for (int i = 0; i < conf->threadn; i++) {
             assert(!pthread_join(tids[i], NULL));
         }
+        free(tids);
     }
 
     zlog_fini();

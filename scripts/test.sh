@@ -23,10 +23,20 @@ test_press_perf()
 
 test_multi_thread()
 {
-    cd build/bin
     rm -f zlog.txt*
-    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10 -m 10"
-    cd -
+    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10"
+}
+
+test_multi_thread_record()
+{
+    rm -f zlog.txt*
+    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10 -r"
+}
+
+test_simple()
+{
+    rm -f zlog.txt*
+    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10"
 }
 
 asan_pre=""
@@ -45,4 +55,6 @@ while getopts "t:a" opt; do
   esac
 done
 
+cd build/bin
 $testname
+cd -
