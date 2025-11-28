@@ -30,9 +30,9 @@ void * work(void *ptr)
 {
 	long j = loop_count;
 	while(j-- > 0) {
-		zlog_info(zc, "loglog");
-	}
-	return 0;
+        zlog_info(zc, "loglog %ld", j);
+    }
+    return 0;
 }
 
 
