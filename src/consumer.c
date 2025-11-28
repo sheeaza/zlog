@@ -70,6 +70,8 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
                     logc->flush.done = true;
                     assert(!pthread_cond_signal(&logc->flush.cond));
                     assert(!pthread_mutex_unlock(&logc->flush.siglock));
+                    zc_debug("consumer flush rec %d, send %d\n", logc->event.sig_recv,
+                             logc->event.sig_send);
                 }
                 offset += msg_cmd_size();
                 break;
@@ -82,7 +84,6 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
     }
 
     if (meta == NULL) {
-        zc_error("no meta in packet");
         return;
     }
 
@@ -99,6 +100,8 @@ static void handle_log(struct log_consumer *logc, struct msg_head *head, bool *e
     if (ret) {
         zc_error("failed to output %d", ret);
     }
+    zc_debug("consumer %lx, before del refcnt %d", meta->thread->event->tid,
+             meta->thread->producer.refcnt);
     zlog_thread_del(meta->thread);
 }
 
