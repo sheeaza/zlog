@@ -71,7 +71,7 @@ TODO
 ==================
 todo:
     conf reload -> done
-    remove thread msg buf for consumer enabled.
+    remove thread msg buf for consumer enabled. -> done
 
 test:
     add per zlog_spec_write_* -> done
