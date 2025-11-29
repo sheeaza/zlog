@@ -36,11 +36,14 @@ test_multi_thread_record()
 test_multi_thread_reload()
 {
     rm -f zlog.txt*
-    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 1000 -m 10 --threadN=10 --reloadcnt=10 --reloadms=400 \
+    cmd="$valgrind_cmd $asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 1000 -m 10 --threadN=10 --reloadcnt=10 --reloadms=400 \
         -l test_consumer_static_file_single.conf \
         -l test_consumer_static_file_single.conf \
         -l test_static_file_single.conf \
         -l test_dynamic_file.conf"
+    echo "run cmd:"
+    echo $cmd
+    eval $cmd
 }
 
 test_multi_thread_recordms()
@@ -56,10 +59,14 @@ test_simple()
 }
 
 asan_pre=""
-while getopts "t:a::" opt; do
+valgrind_cmd=""
+while getopts "t:a::v" opt; do
   case $opt in
     t)
       testname="$OPTARG"
+      ;;
+    v)
+      valgrind_cmd="valgrind --track-fds=yes"
       ;;
     a)
       if [[ -z "${OPTARG}" ]]; then

@@ -78,7 +78,7 @@ test:
     multi thread test -> done
     add mdc test
     reload cover all case test -> done
-    fd lead check
+    fd lead check -> done
     doc to md -> done
 
 consumer fifo size config -> done

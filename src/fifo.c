@@ -78,6 +78,7 @@ struct fifo *fifo_create(unsigned int size)
 		return NULL;
 	}
 
+    fifo->memfd = fd;
     fifo->base_addr = base_addr;
     fifo->base_addr_len = total_page_map_size;
 	fifo->in = 0;
