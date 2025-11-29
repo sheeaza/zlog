@@ -31,6 +31,10 @@ set(not_auto_add_test
         test_dzlog_conf
 )
 
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    list(REMOVE_ITEM SRCS ./test_buf.c) # release does not export buf functions
+endif()
+
 foreach (test_src ${SRCS})
     string(REGEX MATCH "^.*/([^/]+)[.]c$" test_name ${test_src})
     set(test_name ${CMAKE_MATCH_1})

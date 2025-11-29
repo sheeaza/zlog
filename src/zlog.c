@@ -293,7 +293,8 @@ XFUNC int zlog_init_from_string(const char *config_string)
     }
     return -1;
 }
-int dzlog_init(const char *config, const char *cname)
+
+XFUNC int dzlog_init(const char *config, const char *cname)
 {
 	int rc = 0;
 	zc_debug("------dzlog_init start------");
@@ -563,7 +564,7 @@ err:
 	return NULL;
 }
 
-int dzlog_set_category(const char *cname)
+XFUNC int dzlog_set_category(const char *cname)
 {
 	int rc = 0;
 	zc_assert(cname, -1);
@@ -1117,7 +1118,7 @@ XFUNC void zlog_profile(void)
 	return;
 }
 /*******************************************************************************/
-int zlog_set_record(const char *rname, zlog_record_fn record_output)
+XFUNC int zlog_set_record(const char *rname, zlog_record_fn record_output)
 {
 	int rc = 0;
 	int rd = 0;
