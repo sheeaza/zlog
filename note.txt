@@ -79,7 +79,7 @@ test:
     add mdc test
     reload cover all case test -> done
     fd lead check
-    doc to md
+    doc to md -> done
 
 consumer fifo size config -> done
 
