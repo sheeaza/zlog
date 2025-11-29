@@ -26,6 +26,9 @@ set(not_auto_add_test
         test_press_syslog
         test_syslog
         test_longlog
+        test_multithread
+        test_consumer_reload_press_zlog
+        test_dzlog_conf
 )
 
 foreach (test_src ${SRCS})
