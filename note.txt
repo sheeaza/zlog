@@ -80,6 +80,7 @@ test:
     reload cover all case test -> done
     fd lead check -> done
     doc to md -> done
+    test optimize
 
 consumer fifo size config -> done
 
