@@ -31,15 +31,15 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#include "rule.h"
-#include "format.h"
 #include "buf.h"
-#include "thread.h"
-#include "level_list.h"
-#include "rotater.h"
-#include "spec.h"
 #include "conf.h"
+#include "format.h"
+#include "level_list.h"
 #include "misc.h"
+#include "rotater.h"
+#include "rule.h"
+#include "spec.h"
+#include "thread.h"
 
 #include "zc_defs.h"
 
