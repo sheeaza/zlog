@@ -40,7 +40,6 @@
 #include "spec.h"
 #include "conf.h"
 #include "misc.h"
-#include "fifo.h"
 
 #include "zc_defs.h"
 
