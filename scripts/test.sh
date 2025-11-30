@@ -1,4 +1,7 @@
-#!/bin/bash
+#bin_dir=""
+#conf_dir=""
+asan_pre=""
+valgrind_cmd=""
 
 perf_wrap()
 {
@@ -12,8 +15,8 @@ perf_wrap()
 
 test_press_perf()
 {
-    cons_press="rm -f press.log*; ./test_consumer_reload_press_zlog 0 200 50 test_consumer_press_zlog.conf"
-    norm_pess="rm -f press.log*; ./test_consumer_reload_press_zlog 0 200 50 test_press_zlog.conf"
+    cons_press="rm -f press.log*; $bin_dir/test_consumer_reload_press_zlog 0 200 50 $conf_dir/test_consumer_press_zlog.conf"
+    norm_pess="rm -f press.log*; $bin_dir/test_consumer_reload_press_zlog 0 200 50 $conf_dir/test_press_zlog.conf"
 
     cd build/bin
     perf_wrap "$cons_press" profile_cons.svg
@@ -21,26 +24,59 @@ test_press_perf()
     cd -
 }
 
+consumer_static_file_single()
+{
+    eval "$valgrind_cmd $asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/test_consumer_static_file_single.conf -n 100 --threadN=10"
+}
+
+# varify_static_file_single - check if normal mode and consumer mode outputs identical
+varify_static_file_single()
+{
+    rm -f zlogA.txt
+    rm -f zlogB.txt
+    conf="static_file_single_A.conf"
+    eval "$valgrind_cmd $asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/$conf -n 1000"
+    ret=$?
+    if [[ "$ret" -ne 0 ]]; then
+        echo "failed to test $conf"
+        return 1
+    fi
+
+    conf="consumer_static_file_single_B.conf"
+    eval "$valgrind_cmd $asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/$conf -n 1000"
+    ret=$?
+    if [[ "$ret" -ne 0 ]]; then
+        echo "failed to test $conf"
+        return 1
+    fi
+
+    md5A=$(md5sum zlogA.txt | awk '{ print $1 }')
+    md5B=$(md5sum zlogB.txt | awk '{ print $1 }')
+    if [ "$md5A" = "$md5B" ]; then
+        echo "match, $md5A == $md5B"
+        return 0
+    fi
+    echo "failed, $md5A != $md5B"
+    return 1
+}
+
 test_multi_thread()
 {
-    rm -f zlog.txt*
-    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10"
+    eval "$asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10"
 }
 
 test_multi_thread_record()
 {
-    rm -f zlog.txt*
-    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10 -r"
+    eval "$asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/test_consumer_static_file_single.conf -n 10 -m 10 --threadN=10 -r"
 }
 
 test_multi_thread_reload()
 {
-    rm -f zlog.txt*
-    cmd="$valgrind_cmd $asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 1000 -m 10 --threadN=10 --reloadcnt=10 --reloadms=400 \
-        -l test_consumer_static_file_single.conf \
-        -l test_consumer_static_file_single.conf \
-        -l test_static_file_single.conf \
-        -l test_dynamic_file.conf"
+    cmd="$valgrind_cmd $asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/test_consumer_static_file_single.conf -n 1000 -m 10 --threadN=10 --reloadcnt=10 --reloadms=400 \
+        -l $conf_dir/test_consumer_static_file_single.conf \
+        -l $conf_dir/test_consumer_static_file_single.conf \
+        -l $conf_dir/test_static_file_single.conf \
+        -l $conf_dir/test_dynamic_file.conf"
     echo "run cmd:"
     echo $cmd
     eval $cmd
@@ -48,18 +84,14 @@ test_multi_thread_reload()
 
 test_multi_thread_recordms()
 {
-    rm -f zlog.txt*
-    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 2 --threadN=10 -r --recordms=100"
+    eval "$asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/test_consumer_static_file_single.conf -n 2 --threadN=10 -r --recordms=100"
 }
 
 test_simple()
 {
-    rm -f zlog.txt*
-    eval "$asan_pre ./test_dzlog_conf -f test_consumer_static_file_single.conf -n 10"
+    eval "$asan_pre $bin_dir/test_dzlog_conf -f $conf_dir/test_consumer_static_file_single.conf -n 10"
 }
 
-asan_pre=""
-valgrind_cmd=""
 while getopts "t:a::v" opt; do
   case $opt in
     t)
@@ -82,6 +114,7 @@ while getopts "t:a::v" opt; do
   esac
 done
 
-cd build/bin
+# cd build/bin
 $testname
-cd - > /dev/null
+exit $?
+# cd - > /dev/null
