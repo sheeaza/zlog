@@ -24,7 +24,6 @@
 #include "thread.h"
 #include "mdc.h"
 #include "conf.h"
-#include "fifo.h"
 #include "misc.h"
 
 void zlog_thread_profile(zlog_thread_t * a_thread, int flag)
