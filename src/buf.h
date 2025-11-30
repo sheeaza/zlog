@@ -25,6 +25,8 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#include "zc_xplatform.h"
+
 typedef struct zlog_buf_s {
 	char *start;
 	char *tail;
