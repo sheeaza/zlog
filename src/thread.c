@@ -18,13 +18,13 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include "zc_defs.h"
-#include "event.h"
 #include "buf.h"
-#include "thread.h"
-#include "mdc.h"
 #include "conf.h"
+#include "event.h"
+#include "mdc.h"
 #include "misc.h"
+#include "thread.h"
+#include "zc_defs.h"
 
 void zlog_thread_profile(zlog_thread_t * a_thread, int flag)
 {
