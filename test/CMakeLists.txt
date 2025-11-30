@@ -27,7 +27,6 @@ set(not_auto_add_test
         test_syslog
         test_longlog
         test_multithread
-        test_consumer_reload_press_zlog
         test_dzlog_conf
 )
 
